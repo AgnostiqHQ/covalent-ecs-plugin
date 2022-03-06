@@ -20,9 +20,13 @@
 
 """AWS Fargate executor plugin for the Covalent dispatcher."""
 
+import base64
 import os
+import shutil
 import subprocess
+
 import boto3
+import docker
 
 from typing import Any, Dict, List, Tuple
 
@@ -43,10 +47,19 @@ class FargateExecutor(BaseExecutor):
 
     def __init__(
         self,
-        s3_uri,
-        ecr_repo_name,  # covalent-fargate
+        credentials = "", #filename
+        profile: Optional[str] = None, #credential profile
+        s3_uri = "",
+        ecr_repo_name = "covalent-fargate",
+        ecs_cluster,
+        ecs_service
     ):
         super().__init__()
+
+        self.credentials = credentials
+        self.profile = profile
+        self.s3_uri = s3_uri
+        self.ecr_repo_name = ecr_repo_name
 
     def execute(
         self,
@@ -58,14 +71,16 @@ class FargateExecutor(BaseExecutor):
         node_id: int = -1,
     ) -> Tuple[Any, str, str]:
         
+        print("Inside Fargate!")
         dispatch_info = DispatchInfo(dispatch_id)
         func_filename = f"func-{dispatch_id}-{node_id}.pkl"
         result_filename = f"result-{dispatch_id}-{node_id}.pkl"
         task_results_dir = os.path.join(results_dir, dispatch_id)
         docker_working_dir = "/opt/covalent"
 
+        os.environ["AWS_SHARED_CREDENTIALS_FILE"] = self.credentials
+
         with self.get_dispatch_context(dispatch_info), tempfile.NamedTemporaryFile(dir=self.cache_dir) as f, tempfile.NamedTemporaryFile(dir=self.cache_dir) as g:
-            print("Inside Fargate!")
 
             # Write execution script to file
             python_script = """
@@ -121,32 +136,41 @@ CMD ["{docker_working_dir}/{func_filename}"]
             g.write(dockerfile)
             g.flush()
 
-            # Build the Docker image
+            local_dockerfile = os.path.join(task_results_dir, f"Dockerfile-{dispatch_id}-{node_id}")
+            shutil.copyfile(g.name, local_dockerfile)
+
             image_tag = f"{dispatch_id}-{node_id}"
-            subprocess.run(
-                [
-                    "docker",
-                    "build",
-                    "-f",
-                    g.name,
-                    "-t",
-                    f"{ecr_repo_name}/task:{image_tag}"
-                ],
-                check=True,
-                capture_output=True,
+
+            # Build the Docker image
+            docker_client = docker.from_env()
+            image, build_log = docker_client.images.build(
+                dockerfile=local_dockerfile, 
+                tag=image_tag
             )
 
-            # Upload to ECR
-            sts = boto3.client("sts")
-            account = sts.get_caller_identity()["Account"]
+            # ECR Login
+            ecr = boto3.client("ecr", profile_name=self.profile)
 
-            # TODO: This may not work
-            ecr = boto3.client("ecr")
-            ecr.put_image(
-                registryId=account,
-                repositoryName=self.ecr_repo_name,
-                imageManifest=f"{ecr_repo_name}/task",
-                imageTag=image_tag,
+            ecr_username = "AWS"
+            ecr_credentials = ecr.get_authorization_token()["authorizationData"][0]
+            ecr_password = base64.b64decode(ecr_credentials["authorizationToken"]).replace(b"AWS:", b"").decode("utf-8")
+            ecr_url = ecr_credentials["proxyEndpoint"]
+            ecr_repo_uri = f"{ecr_url.replace('https://', '')}/{self.ecr_repo_name}:{image_tag}"
+
+            docker_client.login(username=ecr_username, password=ecr_password, registry=ecr_url)
+
+            # Tag the image
+            image.tag(ecr_repo_uri, tag=image_tag)
+
+            # Push to ECR
+            result = docker_client.images.push(ecr_repo_uri, tag=image_tag)
+
+            # Deploy on ECS
+            ecs = boto3.client("ecs", profile_name=self.profile)
+            ecs.update_service(
+                cluster=self.ecs_cluster, 
+                service=self.ecs_service, 
+                forceNewDeployment=True
             )
 
             return 42
