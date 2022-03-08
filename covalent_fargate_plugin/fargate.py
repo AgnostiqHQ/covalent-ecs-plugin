@@ -174,7 +174,6 @@ s3.upload_file(local_result_filename, "{s3_bucket_name}", "{result_filename}")
             script_file.flush()
 
             # Write Dockerfile
-            # TODO: Really we should be modifying the existing Dockerfile
             dockerfile = """
 FROM python:3.8-slim-buster
 
@@ -183,9 +182,9 @@ RUN apt-get update && apt-get install -y \\
   && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir --use-feature=in-tree-build boto3 cloudpickle
 
-COPY {func_filename} {docker_working_dir}
-
 WORKDIR {docker_working_dir}
+
+COPY {func_basename} {docker_working_dir}
 
 ENTRYPOINT [ "python" ]
 CMD ["{docker_working_dir}/{func_basename}"]
@@ -204,10 +203,11 @@ CMD ["{docker_working_dir}/{func_basename}"]
             docker_client = docker.from_env()
             image, build_log = docker_client.images.build(
                 path=self.cache_dir,
-                dockerfile=local_dockerfile, 
+                dockerfile=dockerfile_file.name, 
                 tag=image_tag
             )
             return f"{image_tag}", "", ""
+            # TODO: Continue testing here
 
             # ECR config
             ecr = boto3.client("ecr")
