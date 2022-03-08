@@ -1,2 +1,0 @@
-[covalent.executor.executor_plugins]
-fargate = covalent_fargate_plugin.fargate
