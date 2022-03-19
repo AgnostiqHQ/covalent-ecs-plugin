@@ -11,7 +11,7 @@
 
 ## Covalent Fargate Plugin
 
-Covalent is a Pythonic workflow tool used to execute tasks on advanced computing hardware. 
+Covalent is a Pythonic workflow tool used to execute tasks on advanced computing hardware.
 
 ## Release Notes
 
