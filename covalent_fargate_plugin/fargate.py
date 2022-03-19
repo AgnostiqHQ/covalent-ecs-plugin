@@ -49,35 +49,7 @@
 
 # IAM policies needed for the actions related to this executor:
 #       1. CovalentFargateExecutorPolicy: the policy needed to use the FargateExecutor, without
-#          provisioning infrastructure; below is an in-progress list.
-#          - Action:
-#            - s3:GetObject
-#            - s3:PutObject
-#            - s3:ListBucket
-#            Resource:
-#            - arn:aws:s3:::covalent-fargate-task-resources/*
-#            - arn:aws:s3:::covalent-fargate-task-resources
-#          - Action:
-#            - ecr:PutImage
-#            - ecr:UploadLayerPart
-#            - ecr:InitiateLayerUpload
-#            - ecr:CompleteLayerUpload
-#            Resource:
-#            - arn:aws:ecr:::repository/covalent-fargate-task-images
-#          - Action:
-#            - ecr:GetAuthorizationToken
-#            Resource: *
-#          - Action:
-#            - ecs:RegisterTaskDefinition
-#            - ecs:RunTask
-#            - ecs:ListTasks
-#            - ecs:DescribeTasks
-#            Resource:
-#            - arn:aws:ecs:::container-instance/covalent-fargate-cluster/*
-#          - Action:
-#            - logs:GetLogEvents
-#            Resource:
-#            - arn:aws:logs:::log-group:covalent-fargate-task-logs:log-stream:*
+#          provisioning infrastructure -- see infra/iam/CovalentFargateExecutorPolicy.json
 #       2. CovalentFargateExecutorInfraPolicy: Same as above, except additionally allowing provisioning;
 #          Below is an in-progress list.
 #          - Action:
@@ -86,27 +58,9 @@
 #            - ecr:CreateRepository
 #            - s3:CreateBucket
 #            Resource: *
-#       3. CovalentFargateTaskExecutionPolicy: ECS task execution role's policy (complete list)
-#          - Action:
-#            - ecr:GetAuthorizationToken
-#            - ecr:BatchCheckLayerAvailability
-#            - ecr:GetDownloadUrlForLayer
-#            - ecr:BatchGetImage
-#            - logs:CreateLogStream
-#            - logs:PutLogEvents
-#            Resource: *
-#       4. CovalentFargateTaskPolicy: ECS task's policy (used to grant permissions to the script running
-#          within the Docker container). Below is a complete list.
-#          - Action:
-#            - s3:PutObject
-#            - s3:GetObject
-#            - s3:ListBucket
-#            Resource:
-#            - arn:aws:s3:::covalent-fargate-task-resources/*
-#            - arn:aws:s3:::covalent-fargate-task-resources
-#          - Action:
-#            - braket:*
-#            Resource: *
+#       3. CovalentFargateTaskExecutionPolicy: ECS task execution role's policy -- see
+#          infra/iam/CovalentFargateTaskExecutionPolicy.json
+#       4. CovalentFargateTaskPolicy: ECS task's policy -- see infra/iam/CovalentFargateTaskPolicy.json
 
 
 # Network configuration:
@@ -165,7 +119,7 @@ _EXECUTOR_PLUGIN_DEFAULTS = {
     "vcpu": 0.25,
     "memory": 0.5,
     "cache_dir": "/tmp/covalent",
-    "poll_freq": 30,
+    "poll_freq": 10,
 }
 
 executor_plugin_name = "FargateExecutor"
@@ -246,8 +200,18 @@ class FargateExecutor(BaseExecutor):
         image_tag = f"{dispatch_id}-{node_id}"
         container_name = f"covalent-task-{image_tag}"
 
+        # AWS Credentials
         os.environ["AWS_SHARED_CREDENTIALS_FILE"] = self.credentials
         os.environ["AWS_PROFILE"] = self.profile
+
+        # AWS Account Retrieval
+        sts = boto3.client("sts")
+        identity = sts.get_caller_identity()
+        account = identity.get("Account")
+
+        if account is None:
+            app_log.warning(identity)
+            return None, "", identity
 
         # TODO: Move this to BaseExecutor
         Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
@@ -266,7 +230,6 @@ class FargateExecutor(BaseExecutor):
             ecs = boto3.client("ecs")
 
             # Register the task definition
-            account = boto3.client("sts").get_caller_identity()["Account"]
             ecs.register_task_definition(
                 family=self.ecs_task_family_name,
                 taskRoleArn=self.ecs_task_role_name,
@@ -389,12 +352,11 @@ RUN pip install --no-cache-dir --use-feature=in-tree-build boto3 cloudpickle
 
 WORKDIR {docker_working_dir}
 
-COPY {func_filename} {docker_working_dir}
+COPY {func_basename} {docker_working_dir}
 
 ENTRYPOINT [ "python" ]
 CMD ["{docker_working_dir}/{func_basename}"]
 """.format(
-            func_filename=exec_script_filename,
             func_basename=os.path.basename(exec_script_filename),
             docker_working_dir=docker_working_dir,
         )
@@ -485,7 +447,7 @@ CMD ["{docker_working_dir}/{func_basename}"]
         image.tag(ecr_repo_uri, tag=image_tag)
 
         # Push to ECR
-        docker_client.images.push(ecr_repo_uri, tag=image_tag)
+        response = docker_client.images.push(ecr_repo_uri, tag=image_tag)
 
         return ecr_repo_uri
 
