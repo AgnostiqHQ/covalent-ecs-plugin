@@ -122,7 +122,7 @@ _EXECUTOR_PLUGIN_DEFAULTS = {
     "poll_freq": 10,
 }
 
-executor_plugin_name = "FargateExecutor"
+EXECUTOR_PLUGIN_NAME = "FargateExecutor"
 
 
 class FargateExecutor(BaseExecutor):
