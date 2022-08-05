@@ -18,7 +18,7 @@
 #
 # Relief from the License may be granted by purchasing a commercial license.
 
-"""AWS Fargate executor plugin for the Covalent dispatcher."""
+"""AWS ECSExecutor plugin for the Covalent dispatcher."""
 
 # Infrastructure required for this executor:
 #       1. VPC
@@ -122,11 +122,11 @@ _EXECUTOR_PLUGIN_DEFAULTS = {
     "poll_freq": 10,
 }
 
-EXECUTOR_PLUGIN_NAME = "FargateExecutor"
+EXECUTOR_PLUGIN_NAME = "ECSExecutor"
 
 
-class FargateExecutor(BaseExecutor):
-    """AWS Fargate executor plugin class.
+class ECSExecutor(BaseExecutor):
+    """AWS ECSExecutor plugin class.
 
     Args:
         credentials: Full path to AWS credentials file.
@@ -333,7 +333,7 @@ s3.upload_file(local_result_filename, "{s3_bucket_name}", "{result_filename}")
 
     def _format_dockerfile(self, exec_script_filename: str, docker_working_dir: str) -> str:
         """Create a Dockerfile which wraps an executable Python task.
-        
+
         Args:
             exec_script_filename: Name of the executable Python script.
             docker_working_dir: Name of the working directory in the container.
@@ -373,7 +373,7 @@ CMD ["{docker_working_dir}/{func_basename}"]
         kwargs: Dict,
     ) -> str:
         """Package a task using Docker and upload it to AWS ECR.
-        
+
         Args:
             function: A callable Python function.
             image_tag: Tag used to identify the Docker image.
