@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Pre-commit install script.
-- References to Fargate were changed to ECS.
+- Some references of Fargate were changed to ECS.
 
 ## [0.1.0] - 2022-03-31
 
