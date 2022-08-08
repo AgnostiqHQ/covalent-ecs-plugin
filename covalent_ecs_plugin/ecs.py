@@ -196,6 +196,11 @@ class ECSExecutor(BaseExecutor):
         self.memory = memory or get_config("executors.ecs.memory")
         self.poll_freq = poll_freq or get_config("executors.ecs.poll_freq")
 
+        if self.cache_dir == "":
+            self.cache_dir = get_config("executors.awsbatch.cache_dir")
+
+        Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
+
     def run(self, function: Callable, args: List, kwargs: Dict, task_metadata: Dict):
         pass
 
@@ -327,7 +332,7 @@ class ECSExecutor(BaseExecutor):
             script: String object containing the executable Python script.
         """
 
-        app_log.debug("AWS BATCH EXECUTOR: INSIDE FORMAT EXECSCRIPT METHOD")
+        app_log.debug("AWS ECS EXECUTOR: INSIDE FORMAT EXECSCRIPT METHOD")
         return PYTHON_EXEC_SCRIPT.format(
             func_filename=func_filename,
             s3_bucket_name=self.s3_bucket_name,
@@ -346,7 +351,7 @@ class ECSExecutor(BaseExecutor):
             dockerfile: String object containing a Dockerfile.
         """
 
-        app_log.debug("AWS BATCH EXECUTOR: INSIDE FORMAT DOCKERFILE METHOD")
+        app_log.debug("AWS ECS EXECUTOR: INSIDE FORMAT DOCKERFILE METHOD")
         return DOCKER_SCRIPT.format(
             func_basename=os.path.basename(exec_script_filename),
             docker_working_dir=docker_working_dir,
@@ -418,8 +423,6 @@ class ECSExecutor(BaseExecutor):
                 func_filename,
                 result_filename,
                 docker_working_dir,
-                args,
-                kwargs,
             )
             exec_script_file.write(exec_script)
             exec_script_file.flush()
@@ -433,10 +436,12 @@ class ECSExecutor(BaseExecutor):
             shutil.copyfile(dockerfile_file.name, local_dockerfile)
 
             # Build the Docker image
+            app_log.debug(f"AWS ECS EXECUTOR: CACHE DIR {self.cache_dir}")
             docker_client = docker.from_env()
             image, build_log = docker_client.images.build(
                 path=self.cache_dir, dockerfile=dockerfile_file.name, tag=image_tag
             )
+            app_log.debug("AWS ECS EXECUTOR: DOCKER BUILD SUCCESS")
 
         ecr_username = "AWS"
         ecr_password, ecr_registry, ecr_repo_uri = self._get_ecr_info(image_tag)
@@ -447,12 +452,13 @@ class ECSExecutor(BaseExecutor):
 
         # Tag the image
         image.tag(ecr_repo_uri, tag=image_tag)
-        app_log.debug("AWS BATCH EXECUTOR: IMAGE TAG SUCCESS")
+        app_log.debug("AWS ECS EXECUTOR: IMAGE TAG SUCCESS")
 
         # Push to ECR
+        app_log.debug("AWS ECS EXECUTOR: BEGIN IMAGE PUSH")
         try:
             response = docker_client.images.push(ecr_repo_uri, tag=image_tag)
-            app_log.debug(f"AWS BATCH EXECUTOR: DOCKER IMAGE PUSH SUCCESS {response}")
+            app_log.debug(f"AWS ECS EXECUTOR: DOCKER IMAGE PUSH SUCCESS {response}")
         except Exception as e:
             app_log.debug(f"{e}")
 
