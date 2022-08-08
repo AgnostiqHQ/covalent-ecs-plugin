@@ -134,7 +134,7 @@ def test_ecr_info(ecs_executor, mocker):
     assert ecs_executor._get_ecr_info("mock_image_tag") == (
         "fake_token",
         "proxy_endpoint",
-        "proxy_endpoint/mock_ecr_repo_name:mock_image_tag",
+        "proxy_endpoint/mock:mock_image_tag",
     )
     mm.client().get_authorization_token.assert_called_once_with()
 
