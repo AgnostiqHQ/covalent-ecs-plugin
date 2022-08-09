@@ -2,7 +2,7 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "ECSTaskMgmt",
+            "Sid": "VisualEditor0",
             "Effect": "Allow",
             "Action": [
                 "ecs:RunTask",
@@ -12,75 +12,44 @@
             "Resource": "*",
             "Condition": {
                 "ArnEquals": {
-                    "ecs:cluster": "arn:aws:ecs:<region>:<account>:cluster/<ecs_cluster_name>"
+                    "ecs:cluster": "arn:aws:ecs:us-east-1:348041629502:cluster/covalent-fargate-cluster"
                 }
             }
         },
         {
-            "Sid": "ECSTaskRegistration",
+            "Sid": "VisualEditor1",
             "Effect": "Allow",
             "Action": [
-                "ecs:RegisterTaskDefinition"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "ECRAuth",
-            "Effect": "Allow",
-            "Action": [
+                "ecs:RegisterTaskDefinition",
                 "ecr:GetAuthorizationToken"
             ],
             "Resource": "*"
         },
         {
-            "Sid": "ECRUpload",
-            "Effect": "Allow",
-            "Action": [
-                "ecr:GetDownloadUrlForLayer",
-                "ecr:BatchGetImage",
-                "ecr:BatchCheckLayerAvailability",
-                "ecr:InitiateLayerUpload",
-                "ecr:UploadLayerPart",
-                "ecr:CompleteLayerUpload",
-                "ecr:PutImage"
-            ],
-            "Resource": [
-                "arn:aws:ecr:<region>:<account>:repository/<ecr_repo_name>"
-            ]
-        },
-        {
-            "Sid": "IAMRoles",
+            "Sid": "VisualEditor2",
             "Effect": "Allow",
             "Action": [
                 "iam:GetRole",
-                "iam:PassRole"
-            ],
-            "Resource": [
-                "arn:aws:iam::<account>:role/CovalentFargateTaskRole",
-                "arn:aws:iam::<account>:role/ecsTaskExecutionRole"
-            ]
-        },
-        {
-            "Sid": "ObjectStore",
-            "Effect": "Allow",
-            "Action": [
+                "ecr:GetDownloadUrlForLayer",
                 "s3:ListBucket",
+                "ecr:UploadLayerPart",
+                "ecr:PutImage",
                 "s3:PutObject",
-                "s3:GetObject"
+                "s3:GetObject",
+                "iam:PassRole",
+                "ecr:BatchGetImage",
+                "ecr:CompleteLayerUpload",
+                "logs:GetLogEvents",
+                "ecr:InitiateLayerUpload",
+                "ecr:BatchCheckLayerAvailability"
             ],
             "Resource": [
-                "arn:aws:s3:::<s3_resource_bucket>/*",
-                "arn:aws:s3:::<s3_resource_bucket>"
-            ]
-        },
-        {
-            "Sid": "LogRead",
-            "Effect": "Allow",
-            "Action": [
-                "logs:GetLogEvents"
-            ],
-            "Resource": [
-                "arn:aws:logs:<region>:<account>:log-group:<cloudwatch_log_group_name>:log-stream:*"
+                "arn:aws:ecr:*:348041629502:repository/covalent-fargate-task-images",
+                "arn:aws:iam::348041629502:role/CovalentFargateTaskRole",
+                "arn:aws:iam::348041629502:role/ecsTaskExecutionRole",
+                "arn:aws:logs:*:348041629502:log-group:covalent-fargate-task-logs:log-stream:*",
+                "arn:aws:s3:::covalent-fargate-task-resources/*",
+                "arn:aws:s3:::covalent-fargate-task-resources"
             ]
         }
     ]
