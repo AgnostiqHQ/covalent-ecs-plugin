@@ -183,10 +183,10 @@ class ECSExecutor(BaseExecutor):
             "executors.ecs.ecs_task_role_name"
         )
         self.ecs_task_subnet_id = ecs_task_subnet_id or get_config(
-            "executors.ecs.ecs_task_subnets"
+            "executors.ecs.ecs_task_subnet_id"
         )
         self.ecs_task_security_group_id = ecs_task_security_group_id or get_config(
-            "executors.ecs.ecs_task_security_groups"
+            "executors.ecs.ecs_task_security_group_id"
         )
         self.ecs_task_log_group_name = ecs_task_log_group_name or get_config(
             "executors.ecs.ecs_task_log_group_name"
