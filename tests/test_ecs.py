@@ -41,7 +41,6 @@ def ecs_executor(mocker):
         ecs_task_family_name="mock",
         ecs_task_execution_role_name="mock",
         ecs_task_role_name="mock",
-        ecs_task_vpc="mock",
         ecs_task_subnet_id="mock",
         ecs_task_security_group_id="mock",
         ecs_task_log_group_name="mock",
@@ -64,9 +63,8 @@ def test_executor_init_default_values(mocker):
     assert ecse.ecs_task_family_name == "mock"
     assert ecse.ecs_task_execution_role_name == "mock"
     assert ecse.ecs_task_role_name == "mock"
-    assert ecse.ecs_task_vpc == "mock"
-    assert ecse.ecs_task_subnets == "mock"
-    assert ecse.ecs_task_security_groups == "mock"
+    assert ecse.ecs_task_subnet_id == "mock"
+    assert ecse.ecs_task_security_group_id == "mock"
     assert ecse.ecs_task_log_group_name == "mock"
     assert ecse.vcpu == "mock"
     assert ecse.memory == "mock"
