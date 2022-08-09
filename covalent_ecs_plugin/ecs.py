@@ -115,8 +115,8 @@ _EXECUTOR_PLUGIN_DEFAULTS = {
     "ecs_task_family_name": "covalent-fargate-tasks",
     "ecs_task_execution_role_name": "ecsTaskExecutionRole",
     "ecs_task_role_name": "CovalentFargateTaskRole",
-    "ecs_task_subnets": "[SUBNET ID - PLEASE CHANGE]",
-    "ecs_task_security_groups": "[ECS TASK SECURITY GROUP - PLEASE CHANGE]",
+    "ecs_task_subnet_id": "[SUBNET ID - PLEASE CHANGE]",
+    "ecs_task_security_group_id": "[ECS TASK SECURITY GROUP - PLEASE CHANGE]",
     "ecs_task_log_group_name": "covalent-fargate-task-logs",
     "vcpu": 0.25,
     "memory": 0.5,
@@ -139,8 +139,8 @@ class ECSExecutor(BaseExecutor):
         ecs_task_family_name: Name of the ECS task family for a user, project, or experiment.
         ecs_task_execution_role_name: Name of the IAM role used by the ECS agent.
         ecs_task_role_name: Name of the IAM role used within the container.
-        ecs_task_subnets: List of subnets where tasks run, as a comma-separated string.
-        ecs_task_security_groups: List of security groups attached to tasks, as a comma-separated string.
+        ecs_task_subnet_id: Valid subnet ID.
+        ecs_task_security_group_id: Valid security group ID.
         ecs_task_log_group_name: Name of the CloudWatch log group where container logs are stored.
         vcpu: Number of vCPUs available to a task.
         memory: Memory (in GB) available to a task.
@@ -158,8 +158,8 @@ class ECSExecutor(BaseExecutor):
         ecs_task_family_name: str = None,
         ecs_task_execution_role_name: str = None,
         ecs_task_role_name: str = None,
-        ecs_task_subnets: str = None,
-        ecs_task_security_groups: str = None,
+        ecs_task_subnet_id: str = None,
+        ecs_task_security_group_id: str = None,
         ecs_task_log_group_name: str = None,
         vcpu: float = None,
         memory: float = None,
@@ -182,8 +182,10 @@ class ECSExecutor(BaseExecutor):
         self.ecs_task_role_name = ecs_task_role_name or get_config(
             "executors.ecs.ecs_task_role_name"
         )
-        self.ecs_task_subnets = ecs_task_subnets or get_config("executors.ecs.ecs_task_subnets")
-        self.ecs_task_security_groups = ecs_task_security_groups or get_config(
+        self.ecs_task_subnet_id = ecs_task_subnet_id or get_config(
+            "executors.ecs.ecs_task_subnets"
+        )
+        self.ecs_task_security_group_id = ecs_task_security_group_id or get_config(
             "executors.ecs.ecs_task_security_groups"
         )
         self.ecs_task_log_group_name = ecs_task_log_group_name or get_config(
@@ -198,14 +200,14 @@ class ECSExecutor(BaseExecutor):
 
         Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
 
-        if not self._is_valid_subnet_id(self.ecs_task_subnets):
+        if not self._is_valid_subnet_id(self.ecs_task_subnet_id):
             app_log.error(
-                f"{self.ecs_task_subnets} is not a valid subnet id. Please set a valid subnet id either in the ECS executor definition or in the Covalent config file."
+                f"{self.ecs_task_subnet_id} is not a valid subnet id. Please set a valid subnet id either in the ECS executor definition or in the Covalent config file."
             )
 
-        if not self._is_valid_security_group(self.ecs_task_security_groups):
+        if not self._is_valid_security_group(self.ecs_task_security_group_id):
             app_log.error(
-                f"{self.ecs_task_security_groups} is not a valid security group id. Please set a valid security group id either in the ECS executor definition or in the Covalent config file."
+                f"{self.ecs_task_security_group_id} is not a valid security group id. Please set a valid security group id either in the ECS executor definition or in the Covalent config file."
             )
 
     def _is_valid_subnet_id(self, subnet_id: str) -> bool:
@@ -310,8 +312,8 @@ class ECSExecutor(BaseExecutor):
                 count=1,
                 networkConfiguration={
                     "awsvpcConfiguration": {
-                        "subnets": self.ecs_task_subnets.split(","),
-                        "securityGroups": self.ecs_task_security_groups.split(","),
+                        "subnets": self.ecs_task_subnet_id.split(","),
+                        "securityGroups": self.ecs_task_security_group_id.split(","),
                         # This is only needed if we're using public subnets
                         "assignPublicIp": "ENABLED",
                     },
