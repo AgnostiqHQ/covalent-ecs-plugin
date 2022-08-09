@@ -31,19 +31,19 @@ with open("VERSION") as f:
 with open("requirements.txt") as f:
     required = f.read().splitlines()
 
-plugins_list = ["fargate = covalent_fargate_plugin.fargate"]
+plugins_list = ["ecs = covalent_ecs_plugin.ecs"]
 
 setup_info = {
-    "name": "covalent-fargate-plugin",
+    "name": "covalent-ecs-plugin",
     "packages": find_packages("."),
     "version": version,
     "maintainer": "Agnostiq",
-    "url": "https://github.com/AgnostiqHQ/covalent-fargate-plugin",
-    "download_url": f"https://github.com/AgnostiqHQ/covalent-fargate-plugin/archive/v{version}.tar.gz",
+    "url": "https://github.com/AgnostiqHQ/covalent-ecs-plugin",
+    "download_url": f"https://github.com/AgnostiqHQ/covalent-ecs-plugin/archive/v{version}.tar.gz",
     "license": "GNU Affero GPL v3.0",
     "author": "Agnostiq",
     "author_email": "support@agnostiq.ai",
-    "description": "Covalent Fargate Plugin",
+    "description": "Covalent ECS Plugin",
     "long_description": open("README.md").read(),
     "long_description_content_type": "text/markdown",
     "include_package_data": True,

@@ -87,34 +87,36 @@
 
 import base64
 import os
+import re
 import shutil
-import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import boto3
 import cloudpickle as pickle
 import docker
+from covalent._shared_files.config import get_config
 from covalent._shared_files.logger import app_log
 from covalent._shared_files.util_classes import DispatchInfo
 from covalent._workflow.transport import TransportableObject
 from covalent.executor import BaseExecutor
 
+from .scripts import DOCKER_SCRIPT, PYTHON_EXEC_SCRIPT
+
 _EXECUTOR_PLUGIN_DEFAULTS = {
     "credentials": os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
     or os.path.join(os.environ["HOME"], ".aws/credentials"),
-    "profile": os.environ.get("AWS_PROFILE") or "",
+    "profile": os.environ.get("AWS_PROFILE") or "default",
     "s3_bucket_name": "covalent-fargate-task-resources",
     "ecr_repo_name": "covalent-fargate-task-images",
     "ecs_cluster_name": "covalent-fargate-cluster",
     "ecs_task_family_name": "covalent-fargate-tasks",
     "ecs_task_execution_role_name": "ecsTaskExecutionRole",
     "ecs_task_role_name": "CovalentFargateTaskRole",
-    "ecs_task_vpc": "",
-    "ecs_task_subnets": "",
-    "ecs_task_security_groups": "",
+    "ecs_task_subnet_id": "[SUBNET ID - PLEASE CHANGE]",
+    "ecs_task_security_group_id": "[ECS TASK SECURITY GROUP ID - PLEASE CHANGE]",
     "ecs_task_log_group_name": "covalent-fargate-task-logs",
     "vcpu": 0.25,
     "memory": 0.5,
@@ -137,9 +139,8 @@ class ECSExecutor(BaseExecutor):
         ecs_task_family_name: Name of the ECS task family for a user, project, or experiment.
         ecs_task_execution_role_name: Name of the IAM role used by the ECS agent.
         ecs_task_role_name: Name of the IAM role used within the container.
-        ecs_task_vpc: VPC where tasks run.
-        ecs_task_subnets: List of subnets where tasks run, as a comma-separated string.
-        ecs_task_security_groups: List of security groups attached to tasks, as a comma-separated string.
+        ecs_task_subnet_id: Valid subnet ID.
+        ecs_task_security_group_id: Valid security group ID.
         ecs_task_log_group_name: Name of the CloudWatch log group where container logs are stored.
         vcpu: Number of vCPUs available to a task.
         memory: Memory (in GB) available to a task.
@@ -149,40 +150,85 @@ class ECSExecutor(BaseExecutor):
 
     def __init__(
         self,
-        credentials: str,
-        profile: str,
-        s3_bucket_name: str,
-        ecr_repo_name: str,
-        ecs_cluster_name: str,
-        ecs_task_family_name: str,
-        ecs_task_execution_role_name: str,
-        ecs_task_role_name: str,
-        ecs_task_vpc: str,
-        ecs_task_subnets: str,
-        ecs_task_security_groups: str,
-        ecs_task_log_group_name: str,
-        vcpu: float,
-        memory: float,
-        poll_freq: int,
+        credentials: str = None,
+        profile: str = None,
+        s3_bucket_name: str = None,
+        ecr_repo_name: str = None,
+        ecs_cluster_name: str = None,
+        ecs_task_family_name: str = None,
+        ecs_task_execution_role_name: str = None,
+        ecs_task_role_name: str = None,
+        ecs_task_subnet_id: str = None,
+        ecs_task_security_group_id: str = None,
+        ecs_task_log_group_name: str = None,
+        vcpu: float = None,
+        memory: float = None,
+        poll_freq: int = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
 
-        self.credentials = credentials
-        self.profile = profile
-        self.s3_bucket_name = s3_bucket_name
-        self.ecr_repo_name = ecr_repo_name
-        self.ecs_cluster_name = ecs_cluster_name
-        self.ecs_task_family_name = ecs_task_family_name
-        self.ecs_task_execution_role_name = ecs_task_execution_role_name
-        self.ecs_task_role_name = ecs_task_role_name
-        self.ecs_task_vpc = ecs_task_vpc
-        self.ecs_task_subnets = ecs_task_subnets
-        self.ecs_task_security_groups = ecs_task_security_groups
-        self.ecs_task_log_group_name = ecs_task_log_group_name
-        self.vcpu = vcpu
-        self.memory = memory
-        self.poll_freq = poll_freq
+        self.credentials = credentials or get_config("executors.ecs.credentials")
+        self.profile = profile or get_config("executors.ecs.profile")
+        self.s3_bucket_name = s3_bucket_name or get_config("executors.ecs.s3_bucket_name")
+        self.ecr_repo_name = ecr_repo_name or get_config("executors.ecs.ecr_repo_name")
+        self.ecs_cluster_name = ecs_cluster_name or get_config("executors.ecs.ecs_cluster_name")
+        self.ecs_task_family_name = ecs_task_family_name or get_config(
+            "executors.ecs.ecs_task_family_name"
+        )
+        self.ecs_task_execution_role_name = ecs_task_execution_role_name or get_config(
+            "executors.ecs.ecs_task_execution_role_name"
+        )
+        self.ecs_task_role_name = ecs_task_role_name or get_config(
+            "executors.ecs.ecs_task_role_name"
+        )
+        self.ecs_task_subnet_id = ecs_task_subnet_id or get_config(
+            "executors.ecs.ecs_task_subnet_id"
+        )
+        self.ecs_task_security_group_id = ecs_task_security_group_id or get_config(
+            "executors.ecs.ecs_task_security_group_id"
+        )
+        self.ecs_task_log_group_name = ecs_task_log_group_name or get_config(
+            "executors.ecs.ecs_task_log_group_name"
+        )
+        self.vcpu = vcpu or get_config("executors.ecs.vcpu")
+        self.memory = memory or get_config("executors.ecs.memory")
+        self.poll_freq = poll_freq or get_config("executors.ecs.poll_freq")
+
+        if self.cache_dir == "":
+            self.cache_dir = get_config("executors.awsbatch.cache_dir")
+
+        Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
+
+        if not self._is_valid_subnet_id(self.ecs_task_subnet_id):
+            app_log.error(
+                f"{self.ecs_task_subnet_id} is not a valid subnet id. Please set a valid subnet id either in the ECS executor definition or in the Covalent config file."
+            )
+
+        if not self._is_valid_security_group(self.ecs_task_security_group_id):
+            app_log.error(
+                f"{self.ecs_task_security_group_id} is not a valid security group id. Please set a valid security group id either in the ECS executor definition or in the Covalent config file."
+            )
+
+    def _is_valid_subnet_id(self, subnet_id: str) -> bool:
+        """Check if the subnet is valid."""
+
+        return False if re.fullmatch(r"subnet-[0-9a-z]{8}", subnet_id) is None else True
+
+    def _is_valid_security_group(self, security_group: str) -> bool:
+        """Check if the security group is valid."""
+
+        return False if re.fullmatch(r"sg-[0-9a-z]{8}", security_group) is None else True
+
+    def run(self, function: Callable, args: List, kwargs: Dict, task_metadata: Dict):
+        pass
+
+    def _get_aws_account(self) -> Tuple[Dict, str]:
+        """Get AWS account."""
+        app_log.debug(f"AWS ECS EXECUTOR: profile {self.profile}")
+        sts = boto3.Session(profile_name=self.profile).client("sts")
+        identity = sts.get_caller_identity()
+        return identity, identity.get("Account")
 
     def execute(
         self,
@@ -194,27 +240,25 @@ class ECSExecutor(BaseExecutor):
         node_id: int = -1,
     ) -> Tuple[Any, str, str]:
 
+        app_log.debug("AWS ECS EXECUTOR: INSIDE EXECUTE METHOD")
         dispatch_info = DispatchInfo(dispatch_id)
         result_filename = f"result-{dispatch_id}-{node_id}.pkl"
         task_results_dir = os.path.join(results_dir, dispatch_id)
         image_tag = f"{dispatch_id}-{node_id}"
         container_name = f"covalent-task-{image_tag}"
+        app_log.debug("AWS ECS EXECUTOR: IMAGE TAG CONSTRUCTED")
 
         # AWS Credentials
         os.environ["AWS_SHARED_CREDENTIALS_FILE"] = self.credentials
         os.environ["AWS_PROFILE"] = self.profile
+        app_log.debug("AWS ECS EXECUTOR: GET CREDENTIALS AND PROFILE SUCCESS")
 
-        # AWS Account Retrieval
-        sts = boto3.client("sts")
-        identity = sts.get_caller_identity()
-        account = identity.get("Account")
+        identity, account = self._get_aws_account()
+        app_log.debug("AWS ECS EXECUTOR: GET ACCOUNT SUCCESS")
 
         if account is None:
             app_log.warning(identity)
             return None, "", identity
-
-        # TODO: Move this to BaseExecutor
-        Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
 
         with self.get_dispatch_context(dispatch_info):
             ecr_repo_uri = self._package_and_upload(
@@ -225,9 +269,12 @@ class ECSExecutor(BaseExecutor):
                 args,
                 kwargs,
             )
+            app_log.debug("AWS ECS EXECUTOR: PACKAGE AND UPLOAD SUCCESS")
+            app_log.debug(f"AWS ECS EXECUTOR: ECR REPO URI SUCCESS ({ecr_repo_uri})")
 
             # ECS config
-            ecs = boto3.client("ecs")
+            ecs = boto3.Session(profile_name=self.profile).client("ecs")
+            app_log.debug("AWS ECS EXECUTOR: BOTO CLIENT INIT SUCCESS")
 
             # Register the task definition
             ecs.register_task_definition(
@@ -255,6 +302,7 @@ class ECSExecutor(BaseExecutor):
                 cpu=str(int(self.vcpu * 1024)),
                 memory=str(int(self.memory * 1024)),
             )
+            app_log.debug("AWS ECS EXECUTOR: ECS TASK DEFINITION REGISTER SUCCESS")
 
             # Run the task
             response = ecs.run_task(
@@ -264,16 +312,18 @@ class ECSExecutor(BaseExecutor):
                 count=1,
                 networkConfiguration={
                     "awsvpcConfiguration": {
-                        "subnets": self.ecs_task_subnets.split(","),
-                        "securityGroups": self.ecs_task_security_groups.split(","),
+                        "subnets": self.ecs_task_subnet_id.split(","),
+                        "securityGroups": self.ecs_task_security_group_id.split(","),
                         # This is only needed if we're using public subnets
                         "assignPublicIp": "ENABLED",
                     },
                 },
             )
+            app_log.debug("AWS ECS EXECUTOR: RUN TASK SUCCESS")
 
             # Return this task ARN in an async setting
             task_arn = response["tasks"][0]["taskArn"]
+            app_log.debug(f"AWS ECS EXECUTOR: TASK ARN {task_arn}")
 
             self._poll_ecs_task(ecs, task_arn)
 
@@ -284,8 +334,6 @@ class ECSExecutor(BaseExecutor):
         func_filename: str,
         result_filename: str,
         docker_working_dir: str,
-        args: List,
-        kwargs: Dict,
     ) -> str:
         """Create an executable Python script which executes the task.
 
@@ -300,36 +348,13 @@ class ECSExecutor(BaseExecutor):
             script: String object containing the executable Python script.
         """
 
-        exec_script = """
-import os
-import boto3
-import cloudpickle as pickle
-
-local_func_filename = os.path.join("{docker_working_dir}", "{func_filename}")
-local_result_filename = os.path.join("{docker_working_dir}", "{result_filename}")
-
-s3 = boto3.client("s3")
-s3.download_file("{s3_bucket_name}", "{func_filename}", local_func_filename)
-
-with open(local_func_filename, "rb") as f:
-    function = pickle.load(f)
-
-result = function(*{args}, **{kwargs})
-
-with open(local_result_filename, "wb") as f:
-    pickle.dump(result, f)
-
-s3.upload_file(local_result_filename, "{s3_bucket_name}", "{result_filename}")
-""".format(
+        app_log.debug("AWS ECS EXECUTOR: INSIDE FORMAT EXECSCRIPT METHOD")
+        return PYTHON_EXEC_SCRIPT.format(
             func_filename=func_filename,
-            args=args,
-            kwargs=kwargs,
             s3_bucket_name=self.s3_bucket_name,
             result_filename=result_filename,
             docker_working_dir=docker_working_dir,
         )
-
-        return exec_script
 
     def _format_dockerfile(self, exec_script_filename: str, docker_working_dir: str) -> str:
         """Create a Dockerfile which wraps an executable Python task.
@@ -342,26 +367,31 @@ s3.upload_file(local_result_filename, "{s3_bucket_name}", "{result_filename}")
             dockerfile: String object containing a Dockerfile.
         """
 
-        dockerfile = """
-FROM python:3.8-slim-buster
-
-RUN apt-get update && apt-get install -y \\
-  gcc \\
-  && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir --use-feature=in-tree-build boto3 cloudpickle
-
-WORKDIR {docker_working_dir}
-
-COPY {func_basename} {docker_working_dir}
-
-ENTRYPOINT [ "python" ]
-CMD ["{docker_working_dir}/{func_basename}"]
-""".format(
+        app_log.debug("AWS ECS EXECUTOR: INSIDE FORMAT DOCKERFILE METHOD")
+        return DOCKER_SCRIPT.format(
             func_basename=os.path.basename(exec_script_filename),
             docker_working_dir=docker_working_dir,
         )
 
-        return dockerfile
+    def _upload_file_to_s3(
+        self, s3_bucket_name: str, temp_function_filename: str, s3_function_filename: str
+    ) -> None:
+        """Upload file to s3."""
+        s3 = boto3.Session(profile_name=self.profile).client("s3")
+        s3.upload_file(temp_function_filename, s3_bucket_name, s3_function_filename)
+
+    def _get_ecr_info(self, image_tag: str) -> tuple:
+        """Retrieve ecr details."""
+        ecr = boto3.Session(profile_name=self.profile).client("ecr")
+        ecr_credentials = ecr.get_authorization_token()["authorizationData"][0]
+        ecr_password = (
+            base64.b64decode(ecr_credentials["authorizationToken"])
+            .replace(b"AWS:", b"")
+            .decode("utf-8")
+        )
+        ecr_registry = ecr_credentials["proxyEndpoint"]
+        ecr_repo_uri = f"{ecr_registry.replace('https://', '')}/{self.ecr_repo_name}:{image_tag}"
+        return ecr_password, ecr_registry, ecr_repo_uri
 
     def _package_and_upload(
         self,
@@ -391,12 +421,13 @@ CMD ["{docker_working_dir}/{func_basename}"]
 
         with tempfile.NamedTemporaryFile(dir=self.cache_dir) as function_file:
             # Write serialized function to file
-            pickle.dump(function.get_deserialized(), function_file)
+            pickle.dump((function, args, kwargs), function_file)
             function_file.flush()
-
-            # Upload pickled function to S3
-            s3 = boto3.client("s3")
-            s3.upload_file(function_file.name, self.s3_bucket_name, func_filename)
+            self._upload_file_to_s3(
+                temp_function_filename=function_file.name,
+                s3_bucket_name=self.s3_bucket_name,
+                s3_function_filename=func_filename,
+            )
 
         with tempfile.NamedTemporaryFile(
             dir=self.cache_dir, mode="w"
@@ -408,8 +439,6 @@ CMD ["{docker_working_dir}/{func_basename}"]
                 func_filename,
                 result_filename,
                 docker_working_dir,
-                args,
-                kwargs,
             )
             exec_script_file.write(exec_script)
             exec_script_file.flush()
@@ -423,31 +452,31 @@ CMD ["{docker_working_dir}/{func_basename}"]
             shutil.copyfile(dockerfile_file.name, local_dockerfile)
 
             # Build the Docker image
+            app_log.debug(f"AWS ECS EXECUTOR: CACHE DIR {self.cache_dir}")
             docker_client = docker.from_env()
             image, build_log = docker_client.images.build(
                 path=self.cache_dir, dockerfile=dockerfile_file.name, tag=image_tag
             )
-
-        # ECR config
-        ecr = boto3.client("ecr")
+            app_log.debug("AWS ECS EXECUTOR: DOCKER BUILD SUCCESS")
 
         ecr_username = "AWS"
-        ecr_credentials = ecr.get_authorization_token()["authorizationData"][0]
-        ecr_password = (
-            base64.b64decode(ecr_credentials["authorizationToken"])
-            .replace(b"AWS:", b"")
-            .decode("utf-8")
-        )
-        ecr_registry = ecr_credentials["proxyEndpoint"]
-        ecr_repo_uri = f"{ecr_registry.replace('https://', '')}/{self.ecr_repo_name}:{image_tag}"
+        ecr_password, ecr_registry, ecr_repo_uri = self._get_ecr_info(image_tag)
+        app_log.debug("AWS ECS EXECUTOR: ECR INFO RETRIEVAL SUCCESS")
 
         docker_client.login(username=ecr_username, password=ecr_password, registry=ecr_registry)
+        app_log.debug("AWS ECS EXECUTOR: DOCKER CLIENT LOGIN SUCCESS")
 
         # Tag the image
         image.tag(ecr_repo_uri, tag=image_tag)
+        app_log.debug("AWS ECS EXECUTOR: IMAGE TAG SUCCESS")
 
         # Push to ECR
-        response = docker_client.images.push(ecr_repo_uri, tag=image_tag)
+        app_log.debug("AWS ECS EXECUTOR: BEGIN IMAGE PUSH")
+        try:
+            response = docker_client.images.push(ecr_repo_uri, tag=image_tag)
+            app_log.debug(f"AWS ECS EXECUTOR: DOCKER IMAGE PUSH SUCCESS {response}")
+        except Exception as e:
+            app_log.debug(f"{e}")
 
         return ecr_repo_uri
 
@@ -513,11 +542,7 @@ CMD ["{docker_working_dir}/{func_basename}"]
             raise Exception(f"Task failed with exit code {exit_code}.")
 
     def _query_result(
-        self,
-        result_filename: str,
-        task_results_dir: str,
-        task_arn: str,
-        image_tag: str,
+        self, result_filename: str, task_results_dir: str, task_arn: str, image_tag: str
     ) -> Tuple[Any, str, str]:
         """Query and retrieve a completed task's result.
 
@@ -532,30 +557,20 @@ CMD ["{docker_working_dir}/{func_basename}"]
             logs: The stdout and stderr streams corresponding to the task.
             empty_string: A placeholder empty string.
         """
-
         local_result_filename = os.path.join(task_results_dir, result_filename)
-
         s3 = boto3.client("s3")
         s3.download_file(self.s3_bucket_name, result_filename, local_result_filename)
-
         with open(local_result_filename, "rb") as f:
             result = pickle.load(f)
         os.remove(local_result_filename)
-
         task_id = task_arn.split("/")[-1]
         logs = boto3.client("logs")
-
-        # TODO: This should be paginated, but the command doesn't support boto3 pagination
-        # Up to 10000 log events can be returned from a single call to get_log_events()
         events = logs.get_log_events(
             logGroupName=self.ecs_task_log_group_name,
             logStreamName=f"covalent-fargate/covalent-task-{image_tag}/{task_id}",
         )["events"]
 
-        log_events = ""
-        for event in events:
-            log_events += event["message"] + "\n"
-
+        log_events = "".join(event["message"] + "\n" for event in events)
         return result, log_events, ""
 
     def cancel(self, task_arn: str, reason: str = "None") -> None:
