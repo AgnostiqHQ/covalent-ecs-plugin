@@ -87,6 +87,7 @@
 
 import base64
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -107,16 +108,15 @@ from .scripts import DOCKER_SCRIPT, PYTHON_EXEC_SCRIPT
 _EXECUTOR_PLUGIN_DEFAULTS = {
     "credentials": os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
     or os.path.join(os.environ["HOME"], ".aws/credentials"),
-    "profile": os.environ.get("AWS_PROFILE") or "",
+    "profile": os.environ.get("AWS_PROFILE") or "default",
     "s3_bucket_name": "covalent-fargate-task-resources",
     "ecr_repo_name": "covalent-fargate-task-images",
     "ecs_cluster_name": "covalent-fargate-cluster",
     "ecs_task_family_name": "covalent-fargate-tasks",
     "ecs_task_execution_role_name": "ecsTaskExecutionRole",
     "ecs_task_role_name": "CovalentFargateTaskRole",
-    "ecs_task_vpc": "",
-    "ecs_task_subnets": "",
-    "ecs_task_security_groups": "",
+    "ecs_task_subnets": "[SUBNET ID - PLEASE CHANGE]",
+    "ecs_task_security_groups": "[ECS TASK SECURITY GROUP - PLEASE CHANGE]",
     "ecs_task_log_group_name": "covalent-fargate-task-logs",
     "vcpu": 0.25,
     "memory": 0.5,
@@ -139,7 +139,6 @@ class ECSExecutor(BaseExecutor):
         ecs_task_family_name: Name of the ECS task family for a user, project, or experiment.
         ecs_task_execution_role_name: Name of the IAM role used by the ECS agent.
         ecs_task_role_name: Name of the IAM role used within the container.
-        ecs_task_vpc: VPC where tasks run.
         ecs_task_subnets: List of subnets where tasks run, as a comma-separated string.
         ecs_task_security_groups: List of security groups attached to tasks, as a comma-separated string.
         ecs_task_log_group_name: Name of the CloudWatch log group where container logs are stored.
@@ -159,7 +158,6 @@ class ECSExecutor(BaseExecutor):
         ecs_task_family_name: str = None,
         ecs_task_execution_role_name: str = None,
         ecs_task_role_name: str = None,
-        ecs_task_vpc: str = None,
         ecs_task_subnets: str = None,
         ecs_task_security_groups: str = None,
         ecs_task_log_group_name: str = None,
@@ -184,7 +182,6 @@ class ECSExecutor(BaseExecutor):
         self.ecs_task_role_name = ecs_task_role_name or get_config(
             "executors.ecs.ecs_task_role_name"
         )
-        self.ecs_task_vpc = ecs_task_vpc or get_config("executors.ecs.ecs_task_vpc")
         self.ecs_task_subnets = ecs_task_subnets or get_config("executors.ecs.ecs_task_subnets")
         self.ecs_task_security_groups = ecs_task_security_groups or get_config(
             "executors.ecs.ecs_task_security_groups"
@@ -200,6 +197,26 @@ class ECSExecutor(BaseExecutor):
             self.cache_dir = get_config("executors.awsbatch.cache_dir")
 
         Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
+
+        if not self._is_valid_subnet_id(self.ecs_task_subnets):
+            app_log.error(
+                f"{self.ecs_task_subnets} is not a valid subnet id. Please set a valid subnet id either in the ECS executor definition or in the Covalent config file."
+            )
+
+        if not self._is_valid_security_group(self.ecs_task_security_groups):
+            app_log.error(
+                f"{self.ecs_task_security_groups} is not a valid security group id. Please set a valid security group id either in the ECS executor definition or in the Covalent config file."
+            )
+
+    def _is_valid_subnet_id(self, subnet_id: str) -> bool:
+        """Check if the subnet is valid."""
+
+        return False if re.fullmatch(r"subnet-[0-9a-z]{8}", subnet_id) is None else True
+
+    def _is_valid_security_group(self, security_group: str) -> bool:
+        """Check if the security group is valid."""
+
+        return False if re.fullmatch(r"sg-[0-9a-z]{8}", security_group) is None else True
 
     def run(self, function: Callable, args: List, kwargs: Dict, task_metadata: Dict):
         pass
@@ -240,9 +257,6 @@ class ECSExecutor(BaseExecutor):
         if account is None:
             app_log.warning(identity)
             return None, "", identity
-
-        # TODO: Move this to BaseExecutor
-        Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
 
         with self.get_dispatch_context(dispatch_info):
             ecr_repo_uri = self._package_and_upload(
