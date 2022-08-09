@@ -116,7 +116,7 @@ _EXECUTOR_PLUGIN_DEFAULTS = {
     "ecs_task_execution_role_name": "ecsTaskExecutionRole",
     "ecs_task_role_name": "CovalentFargateTaskRole",
     "ecs_task_subnet_id": "[SUBNET ID - PLEASE CHANGE]",
-    "ecs_task_security_group_id": "[ECS TASK SECURITY GROUP - PLEASE CHANGE]",
+    "ecs_task_security_group_id": "[ECS TASK SECURITY GROUP ID - PLEASE CHANGE]",
     "ecs_task_log_group_name": "covalent-fargate-task-logs",
     "vcpu": 0.25,
     "memory": 0.5,
