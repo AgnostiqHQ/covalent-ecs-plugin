@@ -247,8 +247,8 @@ class ECSExecutor(BaseExecutor):
                 count=1,
                 networkConfiguration={
                     "awsvpcConfiguration": {
-                        "subnets": self.ecs_task_subnet_id.split(","),
-                        "securityGroups": self.ecs_task_security_group_id.split(","),
+                        "subnets": self.ecs_task_subnet_id,
+                        "securityGroups": self.ecs_task_security_group_id,
                         # This is only needed if we're using public subnets
                         "assignPublicIp": "ENABLED",
                     },

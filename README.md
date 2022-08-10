@@ -10,12 +10,6 @@
 
 Covalent is a Pythonic workflow tool used to execute tasks on advanced computing hardware. This executor plugin interfaces Covalent with AWS [Elastic Container Service](https://docs.aws.amazon.com/ecs/index.html) where the tasks are run using Fargate. In order for workflows to be deployable, users must have AWS credentials attached to the [CovalentECSExecutorPolicy](https://github.com/AgnostiqHQ/covalent-ecs-plugin/blob/main/infra/iam/CovalentECSExecutorPolicy.json). Users will need additional permissions to provision or manage cloud infrastructure used by this plugin.
 
-In order to install the AWS CLI tool and set up the credentials and configuration:
-```
-pip install awscli
-aws configure
-```
-
 To use this plugin with Covalent, clone this repository and install it using `pip`:
 
 ```
@@ -28,7 +22,7 @@ Users must add the correct entries to their Covalent [configuration](https://cov
 
 ```console
 [executors.ecs]
-credentials = "/Users/faiyaz/.aws/credentials"
+credentials = "/home/user/.aws/credentials"
 profile = "default"
 s3_bucket_name = "covalent-fargate-task-resources"
 ecr_repo_name = "covalent-fargate-task-images"
@@ -71,6 +65,8 @@ executor = ct.executor.ECSExecutor(
 def my_custom_task(x, y):
     return x + y
 ```
+
+Ensure that Docker is running on the client side machine before deploying the workflow.
 
 For more information about how to get started with Covalent, check out the project [homepage](https://github.com/AgnostiqHQ/covalent) and the official [documentation](https://covalent.readthedocs.io/en/latest/).
 
