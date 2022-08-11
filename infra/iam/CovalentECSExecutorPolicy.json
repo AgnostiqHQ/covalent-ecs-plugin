@@ -12,7 +12,7 @@
             "Resource": "*",
             "Condition": {
                 "ArnEquals": {
-                    "ecs:cluster": "arn:aws:ecs:us-east-1:348041629502:cluster/covalent-fargate-cluster"
+                    "ecs:cluster": "arn:aws:ecs:us-east-1:[AWS_ACCOUNT_ID]:cluster/covalent-fargate-cluster"
                 }
             }
         },
@@ -44,10 +44,10 @@
                 "ecr:BatchCheckLayerAvailability"
             ],
             "Resource": [
-                "arn:aws:ecr:*:348041629502:repository/covalent-fargate-task-images",
-                "arn:aws:iam::348041629502:role/CovalentFargateTaskRole",
-                "arn:aws:iam::348041629502:role/ecsTaskExecutionRole",
-                "arn:aws:logs:*:348041629502:log-group:covalent-fargate-task-logs:log-stream:*",
+                "arn:aws:ecr:*:[AWS_ACCOUNT_ID]:repository/covalent-fargate-task-images",
+                "arn:aws:iam::[AWS_ACCOUNT_ID]:role/CovalentFargateTaskRole",
+                "arn:aws:iam::[AWS_ACCOUNT_ID]:role/ecsTaskExecutionRole",
+                "arn:aws:logs:*:[AWS_ACCOUNT_ID]:log-group:covalent-fargate-task-logs:log-stream:*",
                 "arn:aws:s3:::covalent-fargate-task-resources/*",
                 "arn:aws:s3:::covalent-fargate-task-resources"
             ]
