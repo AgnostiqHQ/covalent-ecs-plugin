@@ -39,8 +39,6 @@ cache_dir = "/tmp/covalent"
 poll_freq = 10
 ```
 
-Note that by default, the parameters `ecs_task_subnet_id` and `ecs_task_security_group_id` are not set and it is required by the user to specify these in order for the executor to be initialized.
-
 Within a workflow, users can then decorate electrons using these default settings:
 
 ```python
