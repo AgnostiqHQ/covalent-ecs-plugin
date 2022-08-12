@@ -22,9 +22,9 @@ name: tests
 
 on:
   pull_request:
-  push:
-    branches: 
-      - develop
+  workflow_run:
+    workflows: [changelog]
+    types: [completed]
 
 jobs:
   tests:
@@ -71,22 +71,58 @@ jobs:
           pip install --no-cache-dir -r requirements.txt
           pip install --no-cache-dir -r tests/requirements.txt
       
-      - name: Build distribution
-        run: python setup.py sdist
-
       - name: Install Covalent
         run: pip install covalent --pre
                
-      - name: Run tests
-        run: PYTHONPATH=$PWD/ pytest tests/ -vv
+      - name: Build distribution
+        run: python setup.py sdist
 
-      - name: Push to main
-        id: push
-        if: github.ref == 'refs/heads/develop' && matrix.os == 'ubuntu-latest' && matrix.container == 'python:3.8-buster'
+      - name: Validate plugin
         run: |
           VERSION="$(cat ./VERSION)"
+          cd dist
+          tar xzf covalent-ecs-plugin-${VERSION}.tar.gz
+          diff -r covalent-ecs-plugin-${VERSION}/covalent_ecs_plugin/ ../covalent_ecs_plugin/
+          rm -rf covalent-ecs-plugin-${VERSION}/
+          cd ..
+
+      - name: Install ECS plugin
+        run: |
+          VERSION="$(cat ./VERSION)"
+          pip install ./dist/covalent-ecs-plugin-${VERSION}.tar.gz
+
+      - name: Run tests
+        run: PYTHONPATH=$PWD/tests pytest -vv tests/
+
+      - name: Get latest release
+        uses: actions-ecosystem/action-get-latest-tag@v1
+        id: get-latest-tag
+        if: github.ref == 'refs/heads/develop' && matrix.os == 'ubuntu-latest' && matrix.container == 'python:3.8-buster'
+        with:
+          semver_only: true
+
+      - name: Push to main
+        if: github.ref == 'refs/heads/develop' && matrix.os == 'ubuntu-latest' && matrix.container == 'python:3.8-buster'
+        run: |
+          MASTER_VERSION="$(echo ${{ steps.get-latest-tag.outputs.tag }} | cut -c2- )"
+          VERSION="$(cat ./VERSION)"
           release=false
-          git config user.name "CovalentOpsBot"
-          git config user.email "covalentopsbot@users.noreply.github.com"
-          git remote set-url origin https://${{ secrets.COVALENT_OPS_BOT_TOKEN }}@github.com/AgnostiqHQ/covalent-ecs-plugin.git
-          git push origin HEAD:main
+          if [ "$MASTER_VERSION" = "$VERSION" ] ; then
+            echo "$VERSION has been previously released."
+          else
+            git config user.name "CovalentOpsBot"
+            git config user.email "covalentopsbot@users.noreply.github.com"
+            git remote set-url origin https://${{ secrets.COVALENT_OPS_BOT_TOKEN }}@github.com/AgnostiqHQ/covalent-ecs-plugin.git
+            git push origin HEAD:main
+          fi
+          echo "RELEASE=$release" >> $GITHUB_ENV
+          echo "::set-output name=release::$release"
+         
+  release:
+    needs: tests
+    if: github.ref == 'refs/heads/develop' && needs.tests.outputs.release == 'true'
+    uses: AgnostiqHQ/covalent-ecs-plugin/.github/workflows/release.yml@develop
+    secrets: inherit
+    with:
+      prerelease: true
+
