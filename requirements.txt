@@ -1,2 +1,3 @@
 boto3==1.20.48
+covalent
 docker==5.0.3

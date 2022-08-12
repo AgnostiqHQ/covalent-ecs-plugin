@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="https://github.com/AgnostiqHQ/covalent-ecs-plugin/blob/main/doc/source/_static/aws_ecs_readme_banner.jpg" width=150%>
+<img src="https://raw.githubusercontent.com/AgnostiqHQ/covalent-ecs-plugin/main/assets/aws_ecs_readme_banner.jpg" width=150%>
 
 </div>
 
