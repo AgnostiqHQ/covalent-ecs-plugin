@@ -1,0 +1,56 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "ecs:RunTask",
+                "ecs:ListTasks",
+                "ecs:DescribeTasks"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "ArnEquals": {
+                    "ecs:cluster": "arn:aws:ecs:<region>:<account>:cluster/<ecs_cluster_name>"
+                }
+            }
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": [
+                "ecs:RegisterTaskDefinition",
+                "ecr:GetAuthorizationToken"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "VisualEditor2",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetRole",
+                "ecr:GetDownloadUrlForLayer",
+                "s3:ListBucket",
+                "ecr:UploadLayerPart",
+                "ecr:PutImage",
+                "s3:PutObject",
+                "s3:GetObject",
+                "iam:PassRole",
+                "ecr:BatchGetImage",
+                "ecr:CompleteLayerUpload",
+                "logs:GetLogEvents",
+                "ecr:InitiateLayerUpload",
+                "ecr:BatchCheckLayerAvailability"
+            ],
+            "Resource": [
+                "arn:aws:ecr:<region>:<account>:repository/<ecr_repo_name>",
+                "arn:aws:iam::<account>:role/CovalentFargateTaskRole",
+                "arn:aws:iam::<account>:role/ecsTaskExecutionRole",
+                "arn:aws:logs:*:<account>:log-group:<cloudwatch_log_group_name>:log-stream:*",
+                "arn:aws:s3:::<s3_resource_bucket>/*",
+                "arn:aws:s3:::<s3_resource_bucket>"
+            ]
+        }
+    ]
+}
