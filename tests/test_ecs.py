@@ -72,6 +72,26 @@ def test_executor_init_default_values(mocker):
     assert ecse.cache_dir == "mock"
 
 
+def test_executor_init_validation(mocker):
+    """Test that subnet and security group id is validated."""
+    pass
+
+
+def test_is_valid_subnet_id(mocker):
+    """Test the valid subnet checking method."""
+    pass
+
+
+def test_is_valid_security_group(mocker):
+    """Test the valid security group checking method."""
+    pass
+
+
+def test_run(mocker):
+    """Test the run method."""
+    pass
+
+
 def test_get_aws_account(ecs_executor, mocker):
     """Test the method to retrieve the aws account."""
     mm = MagicMock()
@@ -79,6 +99,11 @@ def test_get_aws_account(ecs_executor, mocker):
     ecs_executor._get_aws_account()
     mm.client().get_caller_identity.called_once_with()
     mm.client().get_caller_identity.get.called_once_with("Account")
+
+
+def test_execute(mocker):
+    """Test the execute method."""
+    pass
 
 
 def test_format_exec_script(ecs_executor):
@@ -168,3 +193,23 @@ def test_package_and_upload(ecs_executor, mocker):
     format_exec_script_mock.assert_called_once()
     format_dockerfile_mock.assert_called_once()
     get_ecr_info_mock.assert_called_once()
+
+
+def test_get_status(mocker):
+    """Test the status checking method."""
+    pass
+
+
+def test_poll_ecs_task(mocker):
+    """Test the method to poll the ecs task."""
+    pass
+
+
+def test_query_result(mocker):
+    """Test the method to query the result."""
+    pass
+
+
+def test_cancel(mocker):
+    """Test the execution cancellation method."""
+    pass
