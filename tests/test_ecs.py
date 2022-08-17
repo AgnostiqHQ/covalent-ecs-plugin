@@ -205,11 +205,13 @@ def test_package_and_upload(ecs_executor, mocker):
 def test_get_status(mocker, ecs_executor):
     """Test the status checking method."""
     ecs_mock = MagicMock()
-    ecs_mock.get_paginator().paginate.return_value = []
+    ecs_mock.get_paginator().paginate.return_value = []  # Case 1: no tasks found
     res = ecs_executor.get_status(ecs_mock, "")
     assert res == ("TASK_NOT_FOUND", -1)
 
-    ecs_mock.get_paginator().paginate.return_value = [{"taskArns": ["mock_task_arn"]}]
+    ecs_mock.get_paginator().paginate.return_value = [
+        {"taskArns": ["mock_task_arn"]}
+    ]  # Case 2 valid task found
     ecs_mock.describe_tasks.return_value = {
         "tasks": [
             {"taskArn": "mock_task_arn", "lastStatus": "RUNNING", "containers": [{"exitCode": 1}]}
@@ -218,10 +220,18 @@ def test_get_status(mocker, ecs_executor):
     res = ecs_executor.get_status(ecs_mock, "mock_task_arn")
     assert res == ("RUNNING", 1)
 
+    ecs_mock.get_paginator().paginate.return_value = [
+        {"taskArns": ["mock_task_arn"]}
+    ]  # Case 3 - task found without any status
+    ecs_mock.describe_tasks.return_value = {
+        "tasks": [{"taskArn": "mock_task_arn", "lastStatus": "FAILED"}]
+    }
+    res = ecs_executor.get_status(ecs_mock, "mock_task_arn")
+    assert res == ("FAILED", -1)
 
-def test_poll_ecs_task(mocker):
+
+def test_poll_ecs_task(mocker, ecs_executor):
     """Test the method to poll the ecs task."""
-    pass
 
 
 def test_query_result(mocker):
