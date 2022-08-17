@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Pinned `covalent` version to `stable`
+
+## [0.7.0] - 2022-08-16
+
+### Changed
+
 - Updated required `covalent` version
 
 ## [0.6.2] - 2022-08-13
