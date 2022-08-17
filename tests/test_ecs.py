@@ -54,6 +54,10 @@ def ecs_executor(mocker):
 def test_executor_init_default_values(mocker):
     """Test that the init values of the executor are set properly."""
     mocker.patch("covalent_ecs_plugin.ecs.get_config", return_value="mock")
+    mocker.patch("covalent_ecs_plugin.ecs.ECSExecutor._is_valid_subnet_id", return_value=False)
+    mocker.patch(
+        "covalent_ecs_plugin.ecs.ECSExecutor._is_valid_security_group", return_value=False
+    )
     ecse = ECSExecutor()
     assert ecse.credentials == "mock"
     assert ecse.profile == "mock"
@@ -74,22 +78,25 @@ def test_executor_init_default_values(mocker):
 
 def test_executor_init_validation(mocker):
     """Test that subnet and security group id is validated."""
-    pass
+    mocker.patch("covalent_ecs_plugin.ecs.get_config", return_value="mock")
+    mocker.patch("covalent_ecs_plugin.ecs.ECSExecutor._is_valid_subnet_id", return_value=True)
+    mocker.patch(
+        "covalent_ecs_plugin.ecs.ECSExecutor._is_valid_security_group", return_value=False
+    )
 
 
-def test_is_valid_subnet_id(mocker):
+def test_is_valid_subnet_id(ecs_executor):
     """Test the valid subnet checking method."""
-    pass
+    assert ecs_executor._is_valid_subnet_id("subnet-871545e1") is True
+    assert ecs_executor._is_valid_subnet_id("subnet-871545e") is False
+    assert ecs_executor._is_valid_subnet_id("jlkjlkj871545e1") is False
 
 
-def test_is_valid_security_group(mocker):
+def test_is_valid_security_group(ecs_executor):
     """Test the valid security group checking method."""
-    pass
-
-
-def test_run(mocker):
-    """Test the run method."""
-    pass
+    assert ecs_executor._is_valid_security_group("sg-0043541a") is True
+    assert ecs_executor._is_valid_security_group("sg-0043541") is False
+    assert ecs_executor._is_valid_security_group("80980043541") is False
 
 
 def test_get_aws_account(ecs_executor, mocker):
@@ -195,9 +202,21 @@ def test_package_and_upload(ecs_executor, mocker):
     get_ecr_info_mock.assert_called_once()
 
 
-def test_get_status(mocker):
+def test_get_status(mocker, ecs_executor):
     """Test the status checking method."""
-    pass
+    ecs_mock = MagicMock()
+    ecs_mock.get_paginator().paginate.return_value = []
+    res = ecs_executor.get_status(ecs_mock, "")
+    assert res == ("TASK_NOT_FOUND", -1)
+
+    ecs_mock.get_paginator().paginate.return_value = [{"taskArns": ["mock_task_arn"]}]
+    ecs_mock.describe_tasks.return_value = {
+        "tasks": [
+            {"taskArn": "mock_task_arn", "lastStatus": "RUNNING", "containers": [{"exitCode": 1}]}
+        ]
+    }
+    res = ecs_executor.get_status(ecs_mock, "mock_task_arn")
+    assert res == ("RUNNING", 1)
 
 
 def test_poll_ecs_task(mocker):
