@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Unit tests for the `ecs.py` module.
 
+## [0.8.0] - 2022-08-17
+
+### Changed
+
+- Pinned `covalent` version to `stable`
+
 ## [0.7.0] - 2022-08-16
 
 ### Changed
