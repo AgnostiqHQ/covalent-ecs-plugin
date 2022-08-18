@@ -202,7 +202,7 @@ def test_package_and_upload(ecs_executor, mocker):
     get_ecr_info_mock.assert_called_once()
 
 
-def test_get_status(mocker, ecs_executor):
+def test_get_status(ecs_executor):
     """Test the status checking method."""
     ecs_mock = MagicMock()
     ecs_mock.get_paginator().paginate.return_value = []  # Case 1: no tasks found
@@ -239,6 +239,11 @@ def test_query_result(mocker):
     pass
 
 
-def test_cancel(mocker):
+def test_cancel(mocker, ecs_executor):
     """Test the execution cancellation method."""
-    pass
+    ecs_client_mock = MagicMock()
+    mocker.patch("covalent_ecs_plugin.ecs.boto3.Session", return_value=ecs_client_mock)
+    ecs_executor.cancel("mock_task_arn", "mock_reason")
+    ecs_client_mock.client().stop_task.assert_called_once_with(
+        cluster="mock", task="mock_task_arn", reason="mock_reason"
+    )

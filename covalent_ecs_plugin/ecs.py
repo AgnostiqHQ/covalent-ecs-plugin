@@ -493,13 +493,13 @@ class ECSExecutor(BaseExecutor):
             empty_string: A placeholder empty string.
         """
         local_result_filename = os.path.join(task_results_dir, result_filename)
-        s3 = boto3.client("s3")
+        s3 = boto3.Session(profile_name=self.profile).client("s3")
         s3.download_file(self.s3_bucket_name, result_filename, local_result_filename)
         with open(local_result_filename, "rb") as f:
             result = pickle.load(f)
         os.remove(local_result_filename)
         task_id = task_arn.split("/")[-1]
-        logs = boto3.client("logs")
+        logs = boto3.Session(profile_name=self.profile).client("logs")
         events = logs.get_log_events(
             logGroupName=self.ecs_task_log_group_name,
             logStreamName=f"covalent-fargate/covalent-task-{image_tag}/{task_id}",
@@ -519,5 +519,5 @@ class ECSExecutor(BaseExecutor):
             None
         """
 
-        ecs = boto3.client("ecs")
+        ecs = boto3.Session(profile_name=self.profile).client("ecs")
         ecs.stop_task(cluster=self.ecs_cluster_name, task=task_arn, reason=reason)
