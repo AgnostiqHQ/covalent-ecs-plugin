@@ -20,9 +20,11 @@
 
 """Unit tests for AWS ECS executor."""
 
+import tempfile
 from base64 import b64encode
 from unittest.mock import MagicMock
 
+import cloudpickle as pickle
 import pytest
 
 from covalent_ecs_plugin.ecs import ECSExecutor
@@ -256,9 +258,26 @@ def test_get_log_events(mocker, ecs_executor):
     assert ecs_executor._get_log_events("mock_image_tag", "mock_task_id") == "hello\nworld\n"
 
 
-def test_query_result(mocker):
+def test_query_result(mocker, ecs_executor):
     """Test the method to query the result."""
-    pass
+    with tempfile.TemporaryDirectory() as temp_dir:
+        with open(f"{temp_dir}/result.pkl", "wb") as f:
+            pickle.dump("mock_result", f)
+        s3_client_mock = MagicMock()
+        mocker.patch("covalent_ecs_plugin.ecs.boto3.Session", return_value=s3_client_mock)
+        logs_mock = mocker.patch(
+            "covalent_ecs_plugin.ecs.ECSExecutor._get_log_events", return_value="mocked_log"
+        )
+        assert ecs_executor._query_result(
+            result_filename="result.pkl",
+            task_results_dir=temp_dir,
+            task_arn="mock_task_arn/mock_task_id",
+            image_tag="mock_image_tag",
+        ) == ("mock_result", "mocked_log", "")
+        s3_client_mock.client().download_file.assert_called_once_with(
+            "mock", "result.pkl", f"{temp_dir}/result.pkl"
+        )
+        logs_mock.assert_called_once_with("mock_image_tag", "mock_task_id")
 
 
 def test_cancel(mocker, ecs_executor):
