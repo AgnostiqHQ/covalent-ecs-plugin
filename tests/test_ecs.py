@@ -232,6 +232,18 @@ def test_get_status(ecs_executor):
 
 def test_poll_ecs_task(mocker, ecs_executor):
     """Test the method to poll the ecs task."""
+    ecs_executor.poll_freq = 1
+    ecs_mock = MagicMock()
+    time_mock = mocker.patch("covalent_ecs_plugin.ecs.time.sleep")
+    mocker.patch(
+        "covalent_ecs_plugin.ecs.ECSExecutor.get_status",
+        side_effect=[("RUNNING", 1), ("STOPPED", 0), ("RUNNING", 1), ("STOPPED", 2)],
+    )
+    ecs_executor._poll_ecs_task(ecs_mock, "mock_task_arn")
+    time_mock.assert_called_once_with(1)
+
+    with pytest.raises(Exception):
+        ecs_executor._poll_ecs_task(ecs_mock, "mock_task_arn")
 
 
 def test_get_log_events(mocker, ecs_executor):
