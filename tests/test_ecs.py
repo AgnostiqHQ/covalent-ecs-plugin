@@ -101,7 +101,7 @@ def test_is_valid_security_group(ecs_executor):
     assert ecs_executor._is_valid_security_group("80980043541") is False
 
 
-def test_get_aws_account(ecs_executor, mocker):
+def test_get_aws_account(mocker, ecs_executor):
     """Test the method to retrieve the aws account."""
     mm = MagicMock()
     mocker.patch("covalent_ecs_plugin.ecs.boto3.Session", return_value=mm)
@@ -110,9 +110,42 @@ def test_get_aws_account(ecs_executor, mocker):
     mm.client().get_caller_identity.get.called_once_with("Account")
 
 
-def test_execute(mocker):
+def test_execute(mocker, ecs_executor):
     """Test the execute method."""
-    pass
+    ecs_executor.vcpu = 1
+    ecs_executor.memory = 1
+
+    def mock_func(x):
+        return x
+
+    mm = MagicMock()
+
+    mocker.patch("covalent_ecs_plugin.ecs.boto3.Session", return_value=mm)
+    package_and_upload_mock = mocker.patch(
+        "covalent_ecs_plugin.ecs.ECSExecutor._package_and_upload"
+    )
+    poll_ecs_task_mock = mocker.patch("covalent_ecs_plugin.ecs.ECSExecutor._poll_ecs_task")
+    query_result_mock = mocker.patch("covalent_ecs_plugin.ecs.ECSExecutor._query_result")
+    ecs_executor.execute(
+        function=mock_func,
+        args=[],
+        kwargs={"x": 1},
+        dispatch_id="mock_dispatch_id",
+        results_dir="/tmp",
+        node_id=1,
+    )
+    package_and_upload_mock.assert_called_once_with(
+        mock_func,
+        "mock_dispatch_id-1",
+        "/tmp/mock_dispatch_id",
+        "result-mock_dispatch_id-1.pkl",
+        [],
+        {"x": 1},
+    )
+    poll_ecs_task_mock.assert_called_once()
+    query_result_mock.assert_called_once()
+    mm.client().register_task_definition.assert_called_once()
+    mm.client().run_task.assert_called_once()
 
 
 def test_format_exec_script(ecs_executor):

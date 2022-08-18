@@ -167,7 +167,7 @@ class ECSExecutor(BaseExecutor):
 
     def execute(
         self,
-        function: TransportableObject,
+        function: Callable,
         args: List,
         kwargs: Dict,
         dispatch_id: str,
