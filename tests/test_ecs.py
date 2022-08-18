@@ -234,6 +234,16 @@ def test_poll_ecs_task(mocker, ecs_executor):
     """Test the method to poll the ecs task."""
 
 
+def test_get_log_events(mocker, ecs_executor):
+    """Test the method to retrieve the log events from the log stream."""
+    logs_client_mock = MagicMock()
+    logs_client_mock.client().get_log_events.return_value = {
+        "events": [{"message": "hello"}, {"message": "world"}]
+    }
+    mocker.patch("covalent_ecs_plugin.ecs.boto3.Session", return_value=logs_client_mock)
+    assert ecs_executor._get_log_events("mock_image_tag", "mock_task_id") == "hello\nworld\n"
+
+
 def test_query_result(mocker):
     """Test the method to query the result."""
     pass
