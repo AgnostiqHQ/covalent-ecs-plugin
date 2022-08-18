@@ -148,12 +148,12 @@ class ECSExecutor(BaseExecutor):
     def _is_valid_subnet_id(self, subnet_id: str) -> bool:
         """Check if the subnet is valid."""
 
-        return False if re.fullmatch(r"subnet-[0-9a-z]{8}", subnet_id) is None else True
+        return re.fullmatch(r"subnet-[0-9a-z]{8}", subnet_id) is not None
 
     def _is_valid_security_group(self, security_group: str) -> bool:
         """Check if the security group is valid."""
 
-        return False if re.fullmatch(r"sg-[0-9a-z]{8}", security_group) is None else True
+        return re.fullmatch(r"sg-[0-9a-z]{8}", security_group) is not None
 
     def run(self, function: Callable, args: List, kwargs: Dict, task_metadata: Dict):
         pass
