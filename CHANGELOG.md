@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added remaining unit tests for the `ecs.py` module.
 
+## [0.10.0] - 2022-08-19
+
+### Changed
+
+- Updated s3 client to initilize with explicit profile name
+
 ## [0.9.0] - 2022-08-18
 
 ### Added
