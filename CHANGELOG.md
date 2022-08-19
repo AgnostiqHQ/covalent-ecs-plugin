@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Tests
+
+- Added remaining unit tests for the `ecs.py` module.
+
 ## [0.10.0] - 2022-08-19
 
 ### Changed

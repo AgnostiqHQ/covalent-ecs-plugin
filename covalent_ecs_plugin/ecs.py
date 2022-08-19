@@ -167,7 +167,7 @@ class ECSExecutor(BaseExecutor):
 
     def execute(
         self,
-        function: TransportableObject,
+        function: Callable,
         args: List,
         kwargs: Dict,
         dispatch_id: str,
@@ -476,6 +476,16 @@ class ECSExecutor(BaseExecutor):
         if exit_code != 0:
             raise Exception(f"Task failed with exit code {exit_code}.")
 
+    def _get_log_events(self, image_tag, task_id):
+        """Retrieve log events from from log stream."""
+        logs = boto3.Session(profile_name=self.profile).client("logs")
+        events = logs.get_log_events(
+            logGroupName=self.ecs_task_log_group_name,
+            logStreamName=f"covalent-fargate/covalent-task-{image_tag}/{task_id}",
+        )["events"]
+
+        return "".join(event["message"] + "\n" for event in events)
+
     def _query_result(
         self, result_filename: str, task_results_dir: str, task_arn: str, image_tag: str
     ) -> Tuple[Any, str, str]:
@@ -500,13 +510,8 @@ class ECSExecutor(BaseExecutor):
             result = pickle.load(f)
         os.remove(local_result_filename)
         task_id = task_arn.split("/")[-1]
-        logs = boto3.client("logs")
-        events = logs.get_log_events(
-            logGroupName=self.ecs_task_log_group_name,
-            logStreamName=f"covalent-fargate/covalent-task-{image_tag}/{task_id}",
-        )["events"]
+        log_events = self._get_log_events(image_tag, task_id)
 
-        log_events = "".join(event["message"] + "\n" for event in events)
         return result, log_events, ""
 
     def cancel(self, task_arn: str, reason: str = "None") -> None:
@@ -520,5 +525,5 @@ class ECSExecutor(BaseExecutor):
             None
         """
 
-        ecs = boto3.client("ecs")
+        ecs = boto3.Session(profile_name=self.profile).client("ecs")
         ecs.stop_task(cluster=self.ecs_cluster_name, task=task_arn, reason=reason)
