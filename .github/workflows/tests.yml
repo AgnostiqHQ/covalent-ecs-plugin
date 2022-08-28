@@ -86,7 +86,10 @@ jobs:
           tar xzf covalent-ecs-plugin-${VERSION}.tar.gz
           diff -r covalent-ecs-plugin-${VERSION}/covalent_ecs_plugin/ ../covalent_ecs_plugin/
           rm -rf covalent-ecs-plugin-${VERSION}/
-          cd ..
+
+      - name: Test import via entrypoint
+        run: from covalent.executor import ECSExecutor
+        shell: python
 
       - name: Install ECS plugin
         run: |
@@ -94,7 +97,19 @@ jobs:
           pip install ./dist/covalent-ecs-plugin-${VERSION}.tar.gz
 
       - name: Run tests
-        run: PYTHONPATH=$PWD/tests pytest -vv tests/
+        run: PYTHONPATH=$PWD/tests pytest -vv tests/ --cov=covalent_ecs_plugin
+
+      - name: Generate coverage report
+        run: coverage xml -o coverage.xml
+      
+      - name: Upload report to Codecov
+        if: >
+          matrix.os == 'ubuntu-latest'
+          && matrix.container == 'python:3.8-buster'
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          name: "Plugin Unit Tests"
 
       - name: Get latest release
         uses: actions-ecosystem/action-get-latest-tag@v1

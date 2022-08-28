@@ -4,21 +4,25 @@
 
 <img src="https://raw.githubusercontent.com/AgnostiqHQ/covalent-ecs-plugin/main/assets/aws_ecs_readme_banner.jpg" width=150%>
 
+[![covalent](https://img.shields.io/badge/covalent-0.177.0-purple)](https://github.com/AgnostiqHQ/covalent)
+[![python](https://img.shields.io/pypi/pyversions/covalent-ecs-plugin)](https://github.com/AgnostiqHQ/covalent-ecs-plugin)
+[![tests](https://github.com/AgnostiqHQ/covalent-ecs-plugin/actions/workflows/tests.yml/badge.svg)](https://github.com/AgnostiqHQ/covalent-ecs-plugin/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/AgnostiqHQ/covalent-ecs-plugin/branch/main/graph/badge.svg?token=QNTR18SR5H)](https://codecov.io/gh/AgnostiqHQ/covalent-ecs-plugin)
+[![agpl](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.en.html)
+
 </div>
 
 ## Covalent ECS Plugin
 
 Covalent is a Pythonic workflow tool used to execute tasks on advanced computing hardware. This executor plugin interfaces Covalent with AWS [Elastic Container Service](https://docs.aws.amazon.com/ecs/index.html) where the tasks are run using Fargate. In order for workflows to be deployable, users must have AWS credentials attached to the [CovalentECSExecutorPolicy](https://github.com/AgnostiqHQ/covalent-ecs-plugin/blob/main/infra/iam/CovalentECSExecutorPolicy.json). Users will need additional permissions to provision or manage cloud infrastructure used by this plugin.
 
-To use this plugin with Covalent, clone this repository and install it using `pip`:
+To use this plugin with Covalent, install it with `pip`:
 
 ```
-git clone git@github.com:AgnostiqHQ/covalent-ecs-plugin.git
-cd covalent-ecs-plugin
-pip install .
+pip install covalent-ecs-plugin
 ```
 
-Users must add the correct entries to their Covalent [configuration](https://covalent.readthedocs.io/en/latest/how_to/config/customization.html) to support the ECS plugin. Below is an example which works using some basic infrastructure created for testing purposes:
+Users need to modify the entries to their Covalent [configuration](https://covalent.readthedocs.io/en/latest/how_to/config/customization.html) to support the ECS plugin. Below is an example which works using some basic infrastructure created for testing purposes:
 
 ```console
 [executors.ecs]
