@@ -87,14 +87,14 @@ jobs:
           diff -r covalent-ecs-plugin-${VERSION}/covalent_ecs_plugin/ ../covalent_ecs_plugin/
           rm -rf covalent-ecs-plugin-${VERSION}/
 
-      - name: Test import via entrypoint
-        run: from covalent.executor import ECSExecutor
-        shell: python
-
       - name: Install ECS plugin
         run: |
           VERSION="$(cat ./VERSION)"
           pip install ./dist/covalent-ecs-plugin-${VERSION}.tar.gz
+
+      - name: Test import via entrypoint
+        run: from covalent.executor import ECSExecutor
+        shell: python
 
       - name: Run tests
         run: PYTHONPATH=$PWD/tests pytest -vv tests/ --cov=covalent_ecs_plugin
