@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Updated
+
+- Updated subnet and security group validation to conform to new 17 digit IDs as per https://aws.amazon.com/about-aws/whats-new/2018/02/longer-format-resource-ids-are-now-available-in-amazon-ec2/
+
 ### Added
 
 - Added live functional tests for CI pipeline
