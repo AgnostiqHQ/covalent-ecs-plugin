@@ -39,6 +39,7 @@ executor_config = {
     ),
     "vcpu": os.getenv("ECS_EXECUTOR_VCPU", 0.25),
     "memory": os.getenv("ECS_EXECUTOR_MEMORY", 0.5),
+    "cache_dir": "/tmp/covalent",
 }
 
 print("Using Executor Config:")
