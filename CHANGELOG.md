@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Tests
+
+- Added missing pip deps to functional tests
+
 ### Updated
 
-- Updated subnet and security group validation to conform to new 17 digit IDs as per https://aws.amazon.com/about-aws/whats-new/2018/02/longer-format-resource-ids-are-now-available-in-amazon-ec2/
+- Updated subnet and security group validation to conform to new 17 digit IDs as per <https://aws.amazon.com/about-aws/whats-new/2018/02/longer-format-resource-ids-are-now-available-in-amazon-ec2/>
 
 ## [0.12.0] - 2022-09-01
 
