@@ -147,7 +147,7 @@ class TestECSExecutor:
         boto3_mock = mocker.patch("covalent_ecs_plugin.ecs.boto3")
         await mock_executor.cancel("mock_task_arn", "mock_reason")
         boto3_mock.Session().client().stop_task.assert_called_once_with(
-            cluster="mock", task="mock_task_arn", reason="mock_reason"
+            cluster=self.MOCK_ECS_CLUSTER_NAME, task="mock_task_arn", reason="mock_reason"
         )
 
     @pytest.mark.asyncio
