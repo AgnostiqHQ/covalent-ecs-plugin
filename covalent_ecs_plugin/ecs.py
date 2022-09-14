@@ -162,7 +162,8 @@ class ECSExecutor(AWSExecutor):
             "cache_dir": self.cache_dir,
             "_cwd": self._cwd,
         }
-        print(config)
+        self._debug_log("Starting ECS Executor with config:")
+        app_log.debug(config)
 
     async def _upload_task(self, function, args, kwargs, task_metadata) -> None:
 
@@ -280,6 +281,7 @@ class ECSExecutor(AWSExecutor):
 
         self._debug_log("Submitting task...")
         task_arn = await self.submit_task(task_metadata, identity)
+
         self._debug_log(f"Successfully submitted task with ARN: {task_arn}")
 
         await self._poll_task(task_arn)
@@ -338,7 +340,7 @@ class ECSExecutor(AWSExecutor):
         status, exit_code = await self.get_status(task_arn)
 
         while status != "STOPPED":
-            asyncio.sleep(self.poll_freq)
+            await asyncio.sleep(self.poll_freq)
             status, exit_code = await self.get_status(task_arn)
 
         if exit_code != 0:
