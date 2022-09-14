@@ -96,6 +96,8 @@ class TestECSExecutor:
     def test_init_explicit_values(self, mocker, mock_executor_config):
         """Test executor class values are overridden properly during instantiation"""
 
+        # only call to get_config is get_config("executors.ecs.cache_dir")
+        mocker.patch("covalent_ecs_plugin.ecs.get_config", return_value="mock_cache_dir")
         mocker.patch("covalent_ecs_plugin.ecs.ECSExecutor._is_valid_subnet_id", return_value=True)
         mocker.patch(
             "covalent_ecs_plugin.ecs.ECSExecutor._is_valid_security_group", return_value=True
