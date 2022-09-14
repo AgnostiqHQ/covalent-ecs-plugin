@@ -248,8 +248,6 @@ class ECSExecutor(AWSExecutor):
                     },
                 },
             )
-            app_log.debug("AWS ECS EXECUTOR: RUN TASK SUCCESS")
-
             # Return this task ARN in an async setting
             task_arn = response["tasks"][0]["taskArn"]
             return task_arn
@@ -286,7 +284,7 @@ class ECSExecutor(AWSExecutor):
 
         await self._poll_task(task_arn)
 
-        return await self.query_result(task_arn)
+        return await self.query_result(task_arn, task_metadata)
 
     async def get_status(self, task_arn: str) -> Tuple[str, int]:
         """Query the status of a previously submitted ECS task.
@@ -365,10 +363,8 @@ class ECSExecutor(AWSExecutor):
         """Query and retrieve a completed task's result.
 
         Args:
-            result_filename: Name of the pickled result file.
-            task_results_dir: Local directory where task results are stored.
-            task_arn: ARN used to identify an ECS task.
-            image_tag: Tag used to identify the Docker image.
+            task_metadata: Dictionary containing the task dispatch_id and node_id
+            task_arn: AWS Identifier for the ECS task
 
         Returns:
             result: The task's result, as a Python object.
@@ -383,17 +379,14 @@ class ECSExecutor(AWSExecutor):
         result_filename = RESULT_FILENAME.format(dispatch_id=dispatch_id, node_id=node_id)
         local_result_filename = os.path.join(self._cwd, result_filename)
 
-        app_log.debug(
-            f"AWS ECS EXECUTOR: DOWNLOADING {result_filename} FROM BUCKET {self.s3_bucket_name} TO LOCAL PATH {local_result_filename}"
+        self._debug_log(
+            f"Downloading {result_filename} from bucket {self.s3_bucket_name} to local path ${local_result_filename}"
         )
         s3.download_file(self.s3_bucket_name, result_filename, local_result_filename)
         with open(local_result_filename, "rb") as f:
             result = pickle.load(f)
         os.remove(local_result_filename)
-        task_id = task_arn.split("/")[-1]
-        log_events = await self._get_log_events(task_id, task_metadata)
-
-        return result, log_events, ""
+        return result
 
     async def cancel(self, task_arn: str, reason: str = "None") -> None:
         """Cancel an ECS task.
