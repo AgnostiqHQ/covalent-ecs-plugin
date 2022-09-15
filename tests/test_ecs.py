@@ -30,9 +30,7 @@ from unittest.mock import AsyncMock, MagicMock
 import cloudpickle as pickle
 import pytest
 
-import covalent_ecs_plugin.ecs
 from covalent_ecs_plugin.ecs import FUNC_FILENAME, RESULT_FILENAME, ECSExecutor
-from covalent_ecs_plugin.scripts import DOCKER_SCRIPT, PYTHON_EXEC_SCRIPT
 
 
 class TestECSExecutor:
