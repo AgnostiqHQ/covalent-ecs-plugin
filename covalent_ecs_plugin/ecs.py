@@ -21,12 +21,9 @@
 """AWS ECSExecutor plugin for the Covalent dispatcher."""
 
 import asyncio
-import base64
 import os
 import re
-import shutil
 import tempfile
-import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
@@ -35,11 +32,7 @@ import cloudpickle as pickle
 from covalent._shared_files.config import get_config
 from covalent._shared_files.logger import app_log
 from covalent._shared_files.util_classes import DispatchInfo
-from covalent._workflow.transport import TransportableObject
-from covalent.executor import BaseExecutor
 from covalent_aws_plugins import AWSExecutor
-
-from .scripts import DOCKER_SCRIPT, PYTHON_EXEC_SCRIPT
 
 _EXECUTOR_PLUGIN_DEFAULTS = {
     "credentials": os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
