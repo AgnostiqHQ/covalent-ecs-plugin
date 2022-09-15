@@ -172,7 +172,7 @@ class ECSExecutor(AWSExecutor):
             function_file.flush()
             s3.upload_file(function_file.name, self.s3_bucket_name, s3_object_filename)
 
-    async def submit_task(self, task_metadata: Dict, identity: Dict) -> None:
+    async def submit_task(self, task_metadata: Dict, identity: Dict) -> str:
 
         dispatch_id = task_metadata["dispatch_id"]
         node_id = task_metadata["node_id"]
@@ -330,6 +330,7 @@ class ECSExecutor(AWSExecutor):
         Returns:
             None
         """
+        self._debug_log(f"Polling task with arn {task_arn}...")
         status, exit_code = await self.get_status(task_arn)
 
         while status != "STOPPED":
@@ -359,8 +360,6 @@ class ECSExecutor(AWSExecutor):
 
         Args:
             task_metadata: Dictionary containing the task dispatch_id and node_id
-            task_arn: AWS Identifier for the ECS task
-
         Returns:
             result: The task's result, as a Python object.
         """
