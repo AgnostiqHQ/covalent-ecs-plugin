@@ -286,7 +286,7 @@ class ECSExecutor(AWSExecutor):
 
         await self._poll_task(task_arn)
 
-        return await self.query_result(task_arn, task_metadata)
+        return await self.query_result(task_metadata)
 
     async def get_status(self, task_arn: str) -> Tuple[str, int]:
         """Query the status of a previously submitted ECS task.
@@ -361,7 +361,7 @@ class ECSExecutor(AWSExecutor):
 
         return "".join(event["message"] + "\n" for event in events)
 
-    async def query_result(self, task_arn: str, task_metadata: Dict) -> Tuple[Any, str, str]:
+    async def query_result(self, task_metadata: Dict) -> Tuple[Any, str, str]:
         """Query and retrieve a completed task's result.
 
         Args:
@@ -370,8 +370,6 @@ class ECSExecutor(AWSExecutor):
 
         Returns:
             result: The task's result, as a Python object.
-            logs: The stdout and stderr streams corresponding to the task.
-            empty_string: A placeholder empty string.
         """
 
         s3 = boto3.Session(**self.boto_session_options()).client("s3")

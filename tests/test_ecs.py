@@ -167,9 +167,7 @@ class TestECSExecutor:
             pickle.dump(MOCK_RESULT_CONTENTS, f)
 
         boto3_mock = mocker.patch("covalent_ecs_plugin.ecs.boto3")
-        result = await mock_executor.query_result(
-            task_arn="mock_task_arn/mock_task_id", task_metadata=self.MOCK_TASK_METADATA
-        )
+        result = await mock_executor.query_result(task_metadata=self.MOCK_TASK_METADATA)
         assert result == MOCK_RESULT_CONTENTS
 
         boto3_mock.Session().client().download_file.assert_called_once_with(
@@ -244,7 +242,7 @@ class TestECSExecutor:
             await mock_executor._poll_task(self.MOCK_TASK_ARN)
 
     @pytest.mark.asyncio
-    async def test_execute(self, mocker, mock_executor):
+    async def test_run(self, mocker, mock_executor):
         """Test the execute method."""
 
         MOCK_IDENTITY = {"Account": 1234}
@@ -278,4 +276,4 @@ class TestECSExecutor:
         returned_task_arn = await submit_task_mock()
 
         _poll_task_mock.assert_called_once_with(returned_task_arn)
-        query_result_mock.assert_called_once_with(returned_task_arn, self.MOCK_TASK_METADATA)
+        query_result_mock.assert_called_once_with(self.MOCK_TASK_METADATA)
