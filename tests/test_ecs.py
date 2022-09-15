@@ -241,7 +241,7 @@ class TestECSExecutor:
 
     @pytest.mark.asyncio
     async def test_run(self, mocker, mock_executor):
-        """Test the execute method."""
+        """Test the run method."""
 
         MOCK_IDENTITY = {"Account": 1234}
         mock_executor.vcpu = 1
@@ -251,7 +251,6 @@ class TestECSExecutor:
             return x
 
         boto3_mock = mocker.patch("covalent_ecs_plugin.ecs.boto3")
-        ecs_client_mock = boto3_mock.Session().client()
 
         upload_task_mock = mocker.patch("covalent_ecs_plugin.ecs.ECSExecutor._upload_task")
         validate_credentials_mock = mocker.patch(
