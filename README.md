@@ -14,48 +14,27 @@
 
 ## Covalent ECS Plugin
 
-Covalent is a Pythonic workflow tool used to execute tasks on advanced computing hardware. This executor plugin interfaces Covalent with AWS [Elastic Container Service](https://docs.aws.amazon.com/ecs/index.html) where the tasks are run using Fargate. In order for workflows to be deployable, users must have AWS credentials attached to the [CovalentECSExecutorPolicy](https://github.com/AgnostiqHQ/covalent-ecs-plugin/blob/main/infra/iam/CovalentECSExecutorPolicy.json). Users will need additional permissions to provision or manage cloud infrastructure used by this plugin.
+Covalent is a Pythonic workflow tool used to execute tasks on advanced computing hardware. This executor plugin interfaces Covalent with AWS [Elastic Container Service (ECS)](https://docs.aws.amazon.com/ecs/index.html) where the tasks are run using Fargate. Additionally, in order for workflows to be deployable, users must have AWS credentials attached to the [CovalentECSExecutorPolicy](https://github.com/AgnostiqHQ/covalent-ecs-plugin/blob/main/infra/iam/CovalentECSExecutorPolicy.json). Users will need additional permissions to provision or manage cloud infrastructure used by this plugin.
 
-To use this plugin with Covalent, install it with `pip`:
+## 1. Installation
+To use this plugin with Covalent, install it using `pip`:
 
-```
+```sh
 pip install covalent-ecs-plugin
 ```
 
-Users need to modify the entries to their Covalent [configuration](https://covalent.readthedocs.io/en/latest/how_to/config/customization.html) to support the ECS plugin. Below is an example which works using some basic infrastructure created for testing purposes:
-
-```console
-[executors.ecs]
-credentials = "/home/user/.aws/credentials"
-profile = "default"
-s3_bucket_name = "covalent-fargate-task-resources"
-ecr_repo_name = "covalent-fargate-task-images"
-ecs_cluster_name = "covalent-fargate-cluster"
-ecs_task_family_name = "covalent-fargate-tasks"
-ecs_task_execution_role_name = "ecsTaskExecutionRole"
-ecs_task_role_name = "CovalentFargateTaskRole"
-ecs_task_subnet_id = "subnet-871545e1"
-ecs_task_security_group_id = "sg-0043541a"
-ecs_task_log_group_name = "covalent-fargate-task-logs"
-vcpu = 0.25
-memory = 0.5
-cache_dir = "/tmp/covalent"
-poll_freq = 10
-```
-
-Within a workflow, users can then decorate electrons using these default settings:
+## 2. Usage Example
+This is an example of how a workflow can be constructed to use the AWS ECS executor. In the example, we train a Support Vector Machine (SVM) and use an instance of the executor to execute the `train_svm` electron. Note that we also require [DepsPip](https://covalent.readthedocs.io/en/latest/concepts/concepts.html#depspip) which will be required to execute the electrons.
 
 ```python
+from numpy.random import permutation
+from sklearn import svm, datasets
 import covalent as ct
 
-@ct.electron(executor="ecs")
-def my_task(x, y):
-    return x + y
-```
+deps_pip = ct.DepsPip(
+    packages=["numpy==1.22.4", "scikit-learn==1.1.2"]
+)
 
-or use a class object to customize the resources and other behavior:
-
-```python
 executor = ct.executor.ECSExecutor(
     vcpu=1,
     memory=2,
@@ -63,14 +42,94 @@ executor = ct.executor.ECSExecutor(
     ecs_task_security_group_id="sg-0043541a"
 )
 
-@ct.electron(executor=executor)
-def my_custom_task(x, y):
-    return x + y
+
+# Use executor plugin to train our SVM model
+@ct.electron(
+    executor=executor, 
+    deps_pip=deps_pip
+)
+def train_svm(data, C, gamma):
+    X, y = data
+    clf = svm.SVC(C=C, gamma=gamma)
+    clf.fit(X[90:], y[90:])
+    return clf
+
+@ct.electron
+def load_data():
+    iris = datasets.load_iris()
+    perm = permutation(iris.target.size)
+    iris.data = iris.data[perm]
+    iris.target = iris.target[perm]
+    return iris.data, iris.target
+
+@ct.electron
+def score_svm(data, clf):
+    X_test, y_test = data
+    return clf.score(
+    	X_test[:90],y_test[:90]
+    )
+
+@ct.lattice
+def run_experiment(C=1.0, gamma=0.7):
+    data = load_data()
+    clf = train_svm(
+    	data=data,
+	    C=C,
+	    gamma=gamma
+    )
+    score = score_svm(
+    	data=data,
+	    clf=clf
+    )
+    return score
+
+# Dispatch the workflow.
+dispatch_id = ct.dispatch(run_experiment)(
+        C=1.0,
+        gamma=0.7
+)
+
+# Wait for our result and get result value
+result = ct.get_result(dispatch_id, wait=True).result
+
+print(result)
+```
+During the execution of the workflow, one can navigate to the UI to see the status of the workflow. Once completed, the above script should also output a value with the score of our model.
+
+```sh
+0.8666666666666667
 ```
 
-Ensure that Docker is running on the client side machine before deploying the workflow.
+In order for the above workflow to run successfully, one has to provision the required cloud resources as mentioned in the section [Required AWS Resources](#-required-aws-resources).
 
-For more information about how to get started with Covalent, check out the project [homepage](https://github.com/AgnostiqHQ/covalent) and the official [documentation](https://covalent.readthedocs.io/en/latest/).
+## 3. Configuration
+
+There are many configuration options that can be passed into the `ct.executor.ECSExecutor` class or by modifying the [covalent config file](https://covalent.readthedocs.io/en/latest/how_to/config/customization.html) under the section `[executors.ecs]`
+
+For more information about all of the possible configuration values, visit our [read the docs (RTD) guide](https://covalent.readthedocs.io/en/latest/api/executors/awsecs.html)
+for this plugin.
+
+## 4. Required AWS Resources
+
+In order for workflows to leverage this executor, users must ensure that all the necessary IAM permissions are properly setup and configured. This executor uses the [S3](https://aws.amazon.com/s3/), [ECR](https://aws.amazon.com/ecr/), and [ECS](https://aws.amazon.com/ecs/) services to execute an electron, thus the required IAM roles and policies must be configured correctly. Precisely, the following resources are needed for the executor to run any dispatched electrons properly.
+
+| Resource     | Config Name      | Description |
+| ------------ | ---------------- | ----------- |
+| IAM Role     | ecs_task_execution_role_name | The IAM role used by the ECS agent |
+| IAM Role     | ecs_task_role_name | The IAM role used within a container instance that executes a task |
+| S3 Bucket     | s3_bucket_name | The name of the S3 bucket where objects are stored |
+| ECR repository     | ecr_repo_name | The name of the ECR repository where task images are stored  |
+| ECS Cluster     | ecs_cluster_name   | The name of the ECS cluster on which your tasks are executed  |
+| ECS Task Family     | ecs_task_family_name  | The name of the task family that specifies container information for a user, project, or experiment |
+| VPC Subnet    | ecs_task_subnet_id   | The ID of the subnet where container instances are deployed for executing your tasks |
+| Security group     | ecs_task_security_group_id   | The ID of the security group for task execution. |
+| Cloudwatch log group     | ecs_task_log_group_name   | The name of the CloudWatch log group where container logs are stored |
+| Compute     | vCPU   | The number of vCPUs available to a task |
+| Memory     | memory   | The memory (in GB) available to a task |
+
+## Getting Started with Covalent
+
+For more information on how to get started with Covalent, check out the project [homepage](https://github.com/AgnostiqHQ/covalent) and the official [documentation](https://covalent.readthedocs.io/en/latest/).
 
 ## Release Notes
 
