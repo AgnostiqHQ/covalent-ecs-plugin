@@ -14,7 +14,7 @@
 
 ## Covalent ECS Plugin
 
-Covalent is a Pythonic workflow tool used to execute tasks on advanced computing hardware. This executor plugin interfaces Covalent with AWS [Elastic Container Service (ECS)](https://docs.aws.amazon.com/ecs/index.html) where the tasks are run using Fargate. In order for workflows to be deployable, users must have AWS credentials attached to the [CovalentECSExecutorPolicy](https://github.com/AgnostiqHQ/covalent-ecs-plugin/blob/main/infra/iam/CovalentECSExecutorPolicy.json). Users will need additional permissions to provision or manage cloud infrastructure used by this plugin.
+Covalent is a Pythonic workflow tool used to execute tasks on advanced computing hardware. This executor plugin interfaces Covalent with AWS [Elastic Container Service (ECS)](https://docs.aws.amazon.com/ecs/index.html) where the tasks are run using Fargate.
 
 ## 1. Installation
 
