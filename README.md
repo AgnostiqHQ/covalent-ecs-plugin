@@ -123,8 +123,8 @@ In order for workflows to leverage this executor, users must ensure that all the
 | ECR repository     | ecr_repo_name | The name of the ECR repository where task images are stored  |
 | ECS Cluster     | ecs_cluster_name   | The name of the ECS cluster on which your tasks are executed  |
 | ECS Task Family     | ecs_task_family_name  | The name of the task family that specifies container information for a user, project, or experiment |
-| VPC Subnet    | ecs_task_subnet_id   | The ID of the subnet where container instances are deployed for executing your tasks |
-| Security group     | ecs_task_security_group_id   | The ID of the security group for task execution. |
+| VPC Subnet    | ecs_task_subnet_id   | The ID of the subnet where instances are created |
+| Security group     | ecs_task_security_group_id   | The ID of the security group for task instances |
 | Cloudwatch log group     | ecs_task_log_group_name   | The name of the CloudWatch log group where container logs are stored |
 | CPU     | vCPU   | The number of vCPUs available to a task |
 | Memory     | memory   | The memory (in GB) available to a task |
