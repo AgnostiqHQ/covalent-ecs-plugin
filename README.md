@@ -14,9 +14,10 @@
 
 ## Covalent ECS Plugin
 
-Covalent is a Pythonic workflow tool used to execute tasks on advanced computing hardware. This executor plugin interfaces Covalent with AWS [Elastic Container Service (ECS)](https://docs.aws.amazon.com/ecs/index.html) where the tasks are run using Fargate. Additionally, in order for workflows to be deployable, users must have AWS credentials attached to the [CovalentECSExecutorPolicy](https://github.com/AgnostiqHQ/covalent-ecs-plugin/blob/main/infra/iam/CovalentECSExecutorPolicy.json). Users will need additional permissions to provision or manage cloud infrastructure used by this plugin.
+Covalent is a Pythonic workflow tool used to execute tasks on advanced computing hardware. This executor plugin interfaces Covalent with AWS [Elastic Container Service (ECS)](https://docs.aws.amazon.com/ecs/index.html) where the tasks are run using Fargate. In order for workflows to be deployable, users must have AWS credentials attached to the [CovalentECSExecutorPolicy](https://github.com/AgnostiqHQ/covalent-ecs-plugin/blob/main/infra/iam/CovalentECSExecutorPolicy.json). Users will need additional permissions to provision or manage cloud infrastructure used by this plugin.
 
 ## 1. Installation
+
 To use this plugin with Covalent, install it using `pip`:
 
 ```sh
@@ -24,6 +25,7 @@ pip install covalent-ecs-plugin
 ```
 
 ## 2. Usage Example
+
 This is an example of how a workflow can be constructed to use the AWS ECS executor. In the example, we train a Support Vector Machine (SVM) and use an instance of the executor to execute the `train_svm` electron. Note that we also require [DepsPip](https://covalent.readthedocs.io/en/latest/concepts/concepts.html#depspip) which will be required to execute the electrons.
 
 ```python
@@ -124,7 +126,7 @@ In order for workflows to leverage this executor, users must ensure that all the
 | VPC Subnet    | ecs_task_subnet_id   | The ID of the subnet where container instances are deployed for executing your tasks |
 | Security group     | ecs_task_security_group_id   | The ID of the security group for task execution. |
 | Cloudwatch log group     | ecs_task_log_group_name   | The name of the CloudWatch log group where container logs are stored |
-| Compute     | vCPU   | The number of vCPUs available to a task |
+| CPU     | vCPU   | The number of vCPUs available to a task |
 | Memory     | memory   | The memory (in GB) available to a task |
 
 ## Getting Started with Covalent
