@@ -45,7 +45,7 @@ executor = ct.executor.ECSExecutor(
 
 # Use executor plugin to train our SVM model
 @ct.electron(
-    executor=executor, 
+    executor=executor,
     deps_pip=deps_pip
 )
 def train_svm(data, C, gamma):
