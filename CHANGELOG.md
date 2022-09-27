@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Docs
+
+- Added sections containing configuration information and required cloud resources
+
 ### Operations
 
 - Added license workflow
