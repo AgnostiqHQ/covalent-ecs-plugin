@@ -38,10 +38,18 @@ deps_pip = ct.DepsPip(
 )
 
 executor = ct.executor.ECSExecutor(
+    s3_bucket_name="covalent-fargate-task-resources",
+    ecr_repo_name="covalent-fargate-task-images",
+    ecs_cluster_name="covalent-fargate-cluster",
+    ecs_task_family_name="covalent-fargate-tasks",
+    ecs_task_execution_role_name="ecsTaskExecutionRole",
+    ecs_task_role_name="CovalentFargateTaskRole",
+    ecs_task_subnet_id="subnet-871545e1",
+    ecs_task_security_group_id="sg-0043541a",
+    ecs_task_log_group_name="covalent-fargate-task-logs",
     vcpu=1,
     memory=2,
-    ecs_task_subnet_id="subnet-871545e1",
-    ecs_task_security_group_id="sg-0043541a"
+    poll_freq=10,
 )
 
 
