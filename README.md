@@ -126,7 +126,7 @@ In order for workflows to leverage this executor, users must ensure that all the
 | Resource     | Config Name      | Description |
 | ------------ | ---------------- | ----------- |
 | IAM Role     | ecs_task_execution_role_name | The IAM role used by the ECS agent |
-| IAM Role     | ecs_task_role_name | The IAM role used within a container instance that executes a task |
+| IAM Role     | ecs_task_role_name | The IAM role used by the container during runtime |
 | S3 Bucket     | s3_bucket_name | The name of the S3 bucket where objects are stored |
 | ECR repository     | ecr_repo_name | The name of the ECR repository where task images are stored  |
 | ECS Cluster     | ecs_cluster_name   | The name of the ECS cluster on which your tasks are executed  |
