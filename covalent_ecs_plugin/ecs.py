@@ -146,27 +146,6 @@ class ECSExecutor(AWSExecutor):
                 f"{self.ecs_task_security_group_id} is not a valid security group id. Please set a valid security group id either in the ECS executor definition or in the Covalent config file."
             )
 
-        config = {
-            "profile": self.profile,
-            "region": self.region,
-            "credentials": self.credentials_file,
-            "s3_bucket_name": self.s3_bucket_name,
-            "ecs_cluster_name": self.ecs_cluster_name,
-            "ecs_task_family_name": self.ecs_task_family_name,
-            "ecs_task_role_name": self.ecs_task_role_name,
-            "ecs_task_subnet_id": self.ecs_task_subnet_id,
-            "ecs_task_security_group_id": self.ecs_task_security_group_id,
-            "log_group_name": self.log_group_name,
-            "execution_role": self.execution_role,
-            "poll_freq": self.poll_freq,
-            "vcpu": self.vcpu,
-            "memory": self.memory,
-            "cache_dir": self.cache_dir,
-            "_cwd": self._cwd,
-        }
-        self._debug_log("Starting ECS Executor with config:")
-        app_log.debug(config)
-
     async def _upload_task(self, function, args, kwargs, task_metadata) -> None:
 
         dispatch_id = task_metadata["dispatch_id"]
@@ -320,7 +299,7 @@ class ECSExecutor(AWSExecutor):
             for task in tasks:
                 if task["taskArn"] == task_arn:
                     status = task["lastStatus"]
-                    self._debug_log(f"Got status of task {task_arn}: ${status}")
+                    self._debug_log(f"Got status of task {task_arn}: {status}")
                     try:
                         exit_code = int(task["containers"][0]["exitCode"])
                     except KeyError:
