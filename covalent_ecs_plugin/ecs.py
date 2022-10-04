@@ -38,8 +38,8 @@ _EXECUTOR_PLUGIN_DEFAULTS = {
     "credentials": os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
     or os.path.join(os.environ["HOME"], ".aws/credentials"),
     "profile": os.environ.get("AWS_PROFILE") or "default",
+    "region": os.environ.get("AWS_REGION") or "us-east-1",
     "s3_bucket_name": "covalent-fargate-task-resources",
-    "ecr_repo_name": "covalent-fargate-task-images",
     "ecs_cluster_name": "covalent-fargate-cluster",
     "ecs_task_family_name": "covalent-fargate-tasks",
     "ecs_task_execution_role_name": "ecsTaskExecutionRole",
@@ -68,7 +68,6 @@ class ECSExecutor(AWSExecutor):
         credentials: Full path to AWS credentials file.
         profile: Name of an AWS profile whose credentials are used.
         s3_bucket_name: Name of an S3 bucket where objects are stored.
-        ecr_repo_name: Name of the ECR repository where task images are stored.
         ecs_cluster_name: Name of the ECS cluster on which tasks run.
         ecs_task_family_name: Name of the ECS task family for a user, project, or experiment.
         ecs_task_execution_role_name: Name of the IAM role used by the ECS agent.
@@ -84,17 +83,17 @@ class ECSExecutor(AWSExecutor):
 
     def __init__(
         self,
-        credentials: str = None,
-        profile: str = None,
-        s3_bucket_name: str = None,
-        ecr_repo_name: str = None,
+        s3_bucket_name: str,
+        ecs_task_security_group_id: str,
         ecs_cluster_name: str = None,
         ecs_task_family_name: str = None,
         ecs_task_execution_role_name: str = None,
         ecs_task_role_name: str = None,
         ecs_task_subnet_id: str = None,
-        ecs_task_security_group_id: str = None,
         ecs_task_log_group_name: str = None,
+        region: str = None,
+        credentials: str = None,
+        profile: str = None,
         vcpu: float = None,
         memory: float = None,
         poll_freq: int = None,
@@ -102,24 +101,34 @@ class ECSExecutor(AWSExecutor):
     ):
 
         super().__init__(
-            credentials_file=credentials,
-            profile=profile,
-            s3_bucket_name=s3_bucket_name,
-            execution_role=ecs_task_execution_role_name,
-            poll_freq=poll_freq,
-            log_group_name=ecs_task_log_group_name,
+            region=region or get_config("executors.ecs.region"),
+            credentials_file=credentials or get_config("executors.ecs.credentials"),
+            profile=profile or get_config("executors.ecs.profile"),
+            s3_bucket_name=s3_bucket_name or get_config("executors.ecs.s3_bucket_name"),
+            execution_role=ecs_task_execution_role_name
+            or get_config("executors.ecs.ecs_task_execution_role_name"),
+            poll_freq=poll_freq or get_config("executors.ecs.poll_freq"),
+            log_group_name=ecs_task_log_group_name
+            or get_config("executors.ecs.ecs_task_log_group_name"),
             **kwargs,
         )
 
-        self.ecr_repo_name = ecr_repo_name
-        self.ecs_cluster_name = ecs_cluster_name
-        self.ecs_task_family_name = ecs_task_family_name
+        self.ecs_cluster_name = ecs_cluster_name or get_config("executors.ecs.ecs_cluster_name")
+        self.ecs_task_family_name = ecs_task_family_name or get_config(
+            "executors.ecs.ecs_task_family_name"
+        )
 
-        self.ecs_task_role_name = ecs_task_role_name
-        self.ecs_task_subnet_id = ecs_task_subnet_id
-        self.ecs_task_security_group_id = ecs_task_security_group_id
-        self.vcpu = vcpu
-        self.memory = memory
+        self.ecs_task_role_name = ecs_task_role_name or get_config(
+            "executors.ecs.ecs_task_role_name"
+        )
+        self.ecs_task_subnet_id = ecs_task_subnet_id or get_config(
+            "executors.ecs.ecs_task_subnet_id"
+        )
+        self.ecs_task_security_group_id = ecs_task_security_group_id or get_config(
+            "executors.ecs.ecs_task_security_group_id"
+        )
+        self.vcpu = vcpu or get_config("executors.ecs.vcpu")
+        self.memory = memory or get_config("executors.ecs.memory")
         self._cwd = tempfile.mkdtemp()
 
         if self.cache_dir == "":
@@ -141,7 +150,7 @@ class ECSExecutor(AWSExecutor):
             "profile": self.profile,
             "region": self.region,
             "credentials": self.credentials_file,
-            "ecr_repo_name": self.ecr_repo_name,
+            "s3_bucket_name": self.s3_bucket_name,
             "ecs_cluster_name": self.ecs_cluster_name,
             "ecs_task_family_name": self.ecs_task_family_name,
             "ecs_task_role_name": self.ecs_task_role_name,
@@ -311,7 +320,7 @@ class ECSExecutor(AWSExecutor):
             for task in tasks:
                 if task["taskArn"] == task_arn:
                     status = task["lastStatus"]
-
+                    self._debug_log(f"Got status of task {task_arn}: ${status}")
                     try:
                         exit_code = int(task["containers"][0]["exitCode"])
                     except KeyError:
