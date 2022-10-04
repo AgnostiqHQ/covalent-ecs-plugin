@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Changed
+
+- Falling back to config file defaults when using executor via instantiation of executor class
+- Removed redundant `ecr_repo_name` config attribute
+
 ## [0.14.0] - 2022-09-30
 
 ### Added
