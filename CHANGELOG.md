@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+## [0.15.0] - 2022-10-04
+
 ### Changed
 
 - Falling back to config file defaults when using executor via instantiation of executor class
