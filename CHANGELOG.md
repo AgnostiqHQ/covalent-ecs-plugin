@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added sections containing configuration information and required cloud resources
 
+## [0.15.0] - 2022-10-04
+
+### Changed
+
+- Falling back to config file defaults when using executor via instantiation of executor class
+- Removed redundant `ecr_repo_name` config attribute
+
+## [0.14.0] - 2022-09-30
+
+### Added
+
+-  Logic to specify that only the base covalent-aws-plugins package is to be installed.
+
 ### Operations
 
 - Added license workflow
