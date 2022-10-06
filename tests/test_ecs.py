@@ -37,7 +37,6 @@ class TestECSExecutor:
 
     MOCK_PROFILE = "my_profile"
     MOCK_S3_BUCKET_NAME = "s3-bucket"
-    MOCK_ECR_REPO_NAME = "ecs-repo"
     MOCK_ECS_CLUSTER_NAME = "ecs-cluster"
     MOCK_ECS_TASK_FAMILY_NAME = "task-family-name"
     MOCK_ECS_EXECUTION_ROLE = "task-execution-role"
@@ -71,7 +70,6 @@ class TestECSExecutor:
         config = {
             "profile": self.MOCK_PROFILE,
             "s3_bucket_name": self.MOCK_S3_BUCKET_NAME,
-            "ecr_repo_name": self.MOCK_ECR_REPO_NAME,
             "ecs_cluster_name": self.MOCK_ECS_CLUSTER_NAME,
             "ecs_task_family_name": self.MOCK_ECS_TASK_FAMILY_NAME,
             "ecs_task_execution_role_name": self.MOCK_ECS_EXECUTION_ROLE,
@@ -105,7 +103,6 @@ class TestECSExecutor:
 
         assert executor.profile == self.MOCK_PROFILE
         assert executor.s3_bucket_name == self.MOCK_S3_BUCKET_NAME
-        assert executor.ecr_repo_name == self.MOCK_ECR_REPO_NAME
         assert executor.ecs_task_family_name == self.MOCK_ECS_TASK_FAMILY_NAME
         assert executor.execution_role == self.MOCK_ECS_EXECUTION_ROLE
         assert executor.ecs_task_role_name == self.MOCK_ECS_TASK_ROLE_NAME

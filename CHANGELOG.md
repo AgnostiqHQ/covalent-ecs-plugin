@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Fixed
+
+- Store `BASE_COVALENT_AWS_PLUGINS_ONLY` in a temporary file rather than storing it as an environment variable.
+
+### Docs
+
+- Added sections containing configuration information and required cloud resources
+
+## [0.15.0] - 2022-10-04
+
 ### Changed
 
-- Setting `BASE_COVALENT_AWS_PLUGINS_ONLY` environment system wide to circumvent `setup.py` subprocesses when installing.
+- Falling back to config file defaults when using executor via instantiation of executor class
+- Removed redundant `ecr_repo_name` config attribute
 
 ## [0.14.0] - 2022-09-30
 
