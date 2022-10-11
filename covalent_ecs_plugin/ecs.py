@@ -146,10 +146,7 @@ class ECSExecutor(AWSExecutor):
                 f"{self.ecs_task_security_group_id} is not a valid security group id. Please set a valid security group id either in the ECS executor definition or in the Covalent config file."
             )
 
-    async def _upload_task(self, function, args, kwargs, task_metadata) -> None:
-
-        dispatch_id = task_metadata["dispatch_id"]
-        node_id = task_metadata["node_id"]
+    def _upload_task_to_s3(self, dispatch_id, node_id, function, args, kwargs) -> None:
 
         s3 = boto3.Session(**self.boto_session_options()).client("s3")
         s3_object_filename = FUNC_FILENAME.format(dispatch_id=dispatch_id, node_id=node_id)
@@ -159,6 +156,24 @@ class ECSExecutor(AWSExecutor):
             pickle.dump((function, args, kwargs), function_file)
             function_file.flush()
             s3.upload_file(function_file.name, self.s3_bucket_name, s3_object_filename)
+
+    async def _upload_task(
+        self, function: Callable, args: List, kwargs: Dict, upload_metadata: Dict
+    ):
+        """Abstract method that uploads the picled function to the remote cache."""
+        dispatch_id = upload_metadata["dispatch_id"]
+        node_id = upload_metadata["node_id"]
+        loop = asyncio.get_running_loop()
+        fut = loop.run_in_executor(
+            None,
+            self._upload_task_to_s3,
+            dispatch_id=dispatch_id,
+            node_id=node_id,
+            function=function,
+            args=args,
+            kwargs=kwargs,
+        )
+        return await fut
 
     async def submit_task(self, task_metadata: Dict, identity: Dict) -> str:
 
