@@ -34,6 +34,8 @@ from covalent._shared_files.config import get_config
 from covalent._shared_files.logger import app_log
 from covalent_aws_plugins import AWSExecutor
 
+from .utils import _execute_partial_in_threadpool
+
 _EXECUTOR_PLUGIN_DEFAULTS = {
     "credentials": os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
     or os.path.join(os.environ["HOME"], ".aws/credentials"),
@@ -146,8 +148,8 @@ class ECSExecutor(AWSExecutor):
                 f"{self.ecs_task_security_group_id} is not a valid security group id. Please set a valid security group id either in the ECS executor definition or in the Covalent config file."
             )
 
-    def _upload_task_to_s3(self, dispatch_id, node_id, function, args, kwargs) -> None:
-
+    async def _upload_task_to_s3(self, dispatch_id, node_id, function, args, kwargs) -> None:
+        """Upload task to S3."""
         s3 = boto3.Session(**self.boto_session_options()).client("s3")
         s3_object_filename = FUNC_FILENAME.format(dispatch_id=dispatch_id, node_id=node_id)
 
@@ -160,11 +162,11 @@ class ECSExecutor(AWSExecutor):
     async def _upload_task(
         self, function: Callable, args: List, kwargs: Dict, upload_metadata: Dict
     ):
-        """Abstract method that uploads the picled function to the remote cache."""
+        """Wrapper to make boto3 s3 upload calls async."""
         dispatch_id = upload_metadata["dispatch_id"]
         node_id = upload_metadata["node_id"]
         loop = asyncio.get_running_loop()
-        fut = loop.run_in_executor(
+        future = loop.run_in_executor(
             None,
             self._upload_task_to_s3,
             dispatch_id,
@@ -173,7 +175,7 @@ class ECSExecutor(AWSExecutor):
             args,
             kwargs,
         )
-        return await fut
+        return await future
 
     async def submit_task(self, submit_metadata: Dict, identity: Dict) -> Any:
         """Submit task to ECS."""
@@ -186,7 +188,7 @@ class ECSExecutor(AWSExecutor):
 
         # Register the task definition
         self._debug_log("Registering ECS task definition...")
-        partial_object = partial(
+        partial_func = partial(
             ecs.register_task_definition,
             family=self.ecs_task_family_name,
             taskRoleArn=self.ecs_task_role_name,
@@ -227,14 +229,11 @@ class ECSExecutor(AWSExecutor):
             cpu=str(int(self.vcpu * 1024)),
             memory=str(int(self.memory * 1024)),
         )
-
-        # Register task in separate thread
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, partial_object)
+        await _execute_partial_in_threadpool(partial_func)
 
         # Run the task
         self._debug_log("Running task on ECS...")
-        partial_object = partial(
+        partial_func = partial(
             ecs.run_task,
             taskDefinition=self.ecs_task_family_name,
             launchType="FARGATE",
@@ -249,7 +248,7 @@ class ECSExecutor(AWSExecutor):
                 },
             },
         )
-        response = await loop.run_in_executor(None, partial_object)
+        response = await _execute_partial_in_threadpool(partial_func)
         return response["tasks"][0]["taskArn"]
 
     def _is_valid_subnet_id(self, subnet_id: str) -> bool:
@@ -298,28 +297,25 @@ class ECSExecutor(AWSExecutor):
         """
         ecs = boto3.Session(**self.boto_session_options()).client("ecs")
         paginator = ecs.get_paginator("list_tasks")
-
-        loop = asyncio.get_running_loop()
-
-        partial_object = partial(
+        partial_func = partial(
             paginator.paginate,
             cluster=self.ecs_cluster_name,
             family=self.ecs_task_family_name,
             desiredStatus="STOPPED",
         )
-        page_iterator = await loop.run_in_executor(None, partial_object)
+        page_iterator = await _execute_partial_in_threadpool(partial_func)
 
         for page in page_iterator:
             if len(page["taskArns"]) == 0:
                 break
 
-            partial_object = partial(
+            partial_func = partial(
                 ecs.describe_tasks,
                 cluster=self.ecs_cluster_name,
                 tasks=page["taskArns"],
             )
-            fut = await loop.run_in_executor(None, partial_object)
-            tasks = fut["tasks"]
+            future = await _execute_partial_in_threadpool(partial_func)
+            tasks = future["tasks"]
 
             for task in tasks:
                 if task["taskArn"] == task_arn:
@@ -354,14 +350,13 @@ class ECSExecutor(AWSExecutor):
         node_id = task_metadata["node_id"]
         task_id = task_arn.split("/")[-1]
 
-        partial_object = partial(
+        partial_func = partial(
             logs.get_log_events,
             logGroupName=self.log_group_name,
             logStreamName=f"covalent-fargate/covalent-task-{dispatch_id}-{node_id}/{task_id}",
         )
-        loop = asyncio.get_running_loop()
-        fut = await loop.run_in_executor(None, partial_object)
-        events = fut["events"]
+        future = await _execute_partial_in_threadpool(partial_func)
+        events = future["events"]
         return "".join(event["message"] + "\n" for event in events)
 
     async def query_result(self, task_metadata: Dict) -> Tuple[Any, str, str]:
@@ -397,8 +392,7 @@ class ECSExecutor(AWSExecutor):
             reason: An optional string used to specify a cancellation reason.
         """
         ecs = boto3.Session(**self.boto_session_options()).client("ecs")
-        partial_object = partial(
+        partial_func = partial(
             ecs.stop_task, cluster=self.ecs_cluster_name, task=task_arn, reason=reason
         )
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, partial_object)
+        await _execute_partial_in_threadpool(partial_func)
