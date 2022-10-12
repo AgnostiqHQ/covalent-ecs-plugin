@@ -130,6 +130,10 @@ class TestECSExecutor:
         )
         boto3_mock.Session().client().upload_file.assert_called_once()
 
+    # TODO - Add test
+    def test_upload_task():
+        pass
+
     def test_is_valid_subnet_id(self, mock_executor):
         """Test the valid subnet checking method."""
         assert mock_executor._is_valid_subnet_id("subnet-871545e1") is True
