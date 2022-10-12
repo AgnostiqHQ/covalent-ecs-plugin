@@ -24,6 +24,7 @@ import asyncio
 import os
 import re
 import tempfile
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
@@ -31,7 +32,6 @@ import boto3
 import cloudpickle as pickle
 from covalent._shared_files.config import get_config
 from covalent._shared_files.logger import app_log
-from covalent._shared_files.util_classes import DispatchInfo
 from covalent_aws_plugins import AWSExecutor
 
 _EXECUTOR_PLUGIN_DEFAULTS = {
@@ -147,7 +147,7 @@ class ECSExecutor(AWSExecutor):
             )
 
     def _upload_task_to_s3(self, dispatch_id, node_id, function, args, kwargs) -> None:
-
+        """Upload task to S3 bucket."""
         s3 = boto3.Session(**self.boto_session_options()).client("s3")
         s3_object_filename = FUNC_FILENAME.format(dispatch_id=dispatch_id, node_id=node_id)
 
@@ -175,79 +175,81 @@ class ECSExecutor(AWSExecutor):
         )
         return await fut
 
-    async def submit_task(self, task_metadata: Dict, identity: Dict) -> str:
-
-        dispatch_id = task_metadata["dispatch_id"]
-        node_id = task_metadata["node_id"]
+    async def _register_task_definition(self, submit_metadata: Dict, identity: Dict):
+        """Register task definition to ECS."""
+        dispatch_id = submit_metadata["dispatch_id"]
+        node_id = submit_metadata["node_id"]
         container_name = CONTAINER_NAME.format(dispatch_id=dispatch_id, node_id=node_id)
         account = identity["Account"]
-
-        dispatch_info = DispatchInfo(dispatch_id)
-        with self.get_dispatch_context(dispatch_info):
-
-            ecs = boto3.Session(**self.boto_session_options()).client("ecs")
-
-            # Register the task definition
-            self._debug_log("Registering ECS task definition...")
-            ecs.register_task_definition(
-                family=self.ecs_task_family_name,
-                taskRoleArn=self.ecs_task_role_name,
-                executionRoleArn=f"arn:aws:iam::{account}:role/{self.execution_role}",
-                networkMode="awsvpc",
-                requiresCompatibilities=["FARGATE"],
-                containerDefinitions=[
-                    {
-                        "name": container_name,
-                        "image": COVALENT_EXEC_BASE_URI,
-                        "essential": True,
-                        "logConfiguration": {
-                            "logDriver": "awslogs",
-                            "options": {
-                                "awslogs-region": self.region,
-                                "awslogs-group": self.log_group_name,
-                                "awslogs-create-group": "true",
-                                "awslogs-stream-prefix": "covalent-fargate",
-                            },
+        ecs = boto3.Session(**self.boto_session_options()).client("ecs")
+        self._debug_log("Registering ECS task definition...")
+        partial_object = partial(
+            ecs.register_task_definition,
+            family=self.ecs_task_family_name,
+            taskRoleArn=self.ecs_task_role_name,
+            executionRoleArn=f"arn:aws:iam::{account}:role/{self.execution_role}",
+            networkMode="awsvpc",
+            requiresCompatibilities=["FARGATE"],
+            containerDefinitions=[
+                {
+                    "name": container_name,
+                    "image": COVALENT_EXEC_BASE_URI,
+                    "essential": True,
+                    "logConfiguration": {
+                        "logDriver": "awslogs",
+                        "options": {
+                            "awslogs-region": self.region,
+                            "awslogs-group": self.log_group_name,
+                            "awslogs-create-group": "true",
+                            "awslogs-stream-prefix": "covalent-fargate",
                         },
-                        "environment": [
-                            {"name": "S3_BUCKET_NAME", "value": self.s3_bucket_name},
-                            {
-                                "name": "COVALENT_TASK_FUNC_FILENAME",
-                                "value": FUNC_FILENAME.format(
-                                    dispatch_id=dispatch_id, node_id=node_id
-                                ),
-                            },
-                            {
-                                "name": "RESULT_FILENAME",
-                                "value": RESULT_FILENAME.format(
-                                    dispatch_id=dispatch_id, node_id=node_id
-                                ),
-                            },
-                        ],
                     },
-                ],
-                cpu=str(int(self.vcpu * 1024)),
-                memory=str(int(self.memory * 1024)),
-            )
-
-            # Run the task
-            response = ecs.run_task(
-                taskDefinition=self.ecs_task_family_name,
-                launchType="FARGATE",
-                cluster=self.ecs_cluster_name,
-                count=1,
-                networkConfiguration={
-                    "awsvpcConfiguration": {
-                        "subnets": [self.ecs_task_subnet_id],
-                        "securityGroups": [self.ecs_task_security_group_id],
-                        # This is only needed if we're using public subnets
-                        "assignPublicIp": "ENABLED",
-                    },
+                    "environment": [
+                        {"name": "S3_BUCKET_NAME", "value": self.s3_bucket_name},
+                        {
+                            "name": "COVALENT_TASK_FUNC_FILENAME",
+                            "value": FUNC_FILENAME.format(
+                                dispatch_id=dispatch_id, node_id=node_id
+                            ),
+                        },
+                        {
+                            "name": "RESULT_FILENAME",
+                            "value": RESULT_FILENAME.format(
+                                dispatch_id=dispatch_id, node_id=node_id
+                            ),
+                        },
+                    ],
                 },
-            )
-            # Return this task ARN in an async setting
-            task_arn = response["tasks"][0]["taskArn"]
-            return task_arn
+            ],
+            cpu=str(int(self.vcpu * 1024)),
+            memory=str(int(self.memory * 1024)),
+        )
+        loop = asyncio.get_running_loop()
+        fut = loop.run_in_executor(None, partial_object)
+        job = await fut
+
+    async def _run_task_on_ecs(self):
+        """Run registered task definition on ECS."""
+        ecs = boto3.Session(**self.boto_session_options()).client("ecs")
+        partial_object = partial(
+            ecs.run_task,
+            taskDefinition=self.ecs_task_family_name,
+            launchType="FARGATE",
+            cluster=self.ecs_cluster_name,
+            count=1,
+            networkConfiguration={
+                "awsvpcConfiguration": {
+                    "subnets": [self.ecs_task_subnet_id],
+                    "securityGroups": [self.ecs_task_security_group_id],
+                    # This is only needed if we're using public subnets
+                    "assignPublicIp": "ENABLED",
+                },
+            },
+        )
+        loop = asyncio.get_running_loop()
+        fut = loop.run_in_executor(None, partial_object)
+        response = await fut
+        return response["tasks"][0]["taskArn"]
 
     def _is_valid_subnet_id(self, subnet_id: str) -> bool:
         """Check if the subnet is valid."""
@@ -276,7 +278,8 @@ class ECSExecutor(AWSExecutor):
         await self._upload_task(function, args, kwargs, task_metadata)
 
         self._debug_log("Submitting task...")
-        task_arn = await self.submit_task(task_metadata, identity)
+        await self._register_task_definition(task_metadata, identity)
+        task_arn = await self._run_task_on_ecs()
 
         self._debug_log(f"Successfully submitted task with ARN: {task_arn}")
 
