@@ -121,7 +121,7 @@ class TestECSExecutor:
         def some_function():
             pass
 
-        await mock_executor._upload_task(
+        await mock_executor._upload_task_to_s3(
             some_function, ("some_arg"), {"some": "kwarg"}, self.MOCK_TASK_METADATA
         )
         boto3_mock.Session().client().upload_file.assert_called_once()
@@ -249,7 +249,7 @@ class TestECSExecutor:
 
         boto3_mock = mocker.patch("covalent_ecs_plugin.ecs.boto3")
 
-        upload_task_mock = mocker.patch("covalent_ecs_plugin.ecs.ECSExecutor._upload_task")
+        upload_task_mock = mocker.patch("covalent_ecs_plugin.ecs.ECSExecutor._upload_task_to_s3")
         validate_credentials_mock = mocker.patch(
             "covalent_ecs_plugin.ecs.ECSExecutor._validate_credentials"
         )

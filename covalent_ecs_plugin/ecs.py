@@ -147,7 +147,7 @@ class ECSExecutor(AWSExecutor):
             )
 
     def _upload_task_to_s3(self, dispatch_id, node_id, function, args, kwargs) -> None:
-        """Upload task to S3 bucket."""
+
         s3 = boto3.Session(**self.boto_session_options()).client("s3")
         s3_object_filename = FUNC_FILENAME.format(dispatch_id=dispatch_id, node_id=node_id)
 
@@ -167,21 +167,24 @@ class ECSExecutor(AWSExecutor):
         fut = loop.run_in_executor(
             None,
             self._upload_task_to_s3,
-            dispatch_id=dispatch_id,
-            node_id=node_id,
-            function=function,
-            args=args,
-            kwargs=kwargs,
+            dispatch_id,
+            node_id,
+            function,
+            args,
+            kwargs,
         )
         return await fut
 
-    async def _register_task_definition(self, submit_metadata: Dict, identity: Dict):
-        """Register task definition to ECS."""
+    async def submit_task(self, submit_metadata: Dict, identity: Dict) -> Any:
+        """Submit task to ECS."""
         dispatch_id = submit_metadata["dispatch_id"]
         node_id = submit_metadata["node_id"]
         container_name = CONTAINER_NAME.format(dispatch_id=dispatch_id, node_id=node_id)
         account = identity["Account"]
+
         ecs = boto3.Session(**self.boto_session_options()).client("ecs")
+
+        # Register the task definition
         self._debug_log("Registering ECS task definition...")
         partial_object = partial(
             ecs.register_task_definition,
@@ -224,13 +227,13 @@ class ECSExecutor(AWSExecutor):
             cpu=str(int(self.vcpu * 1024)),
             memory=str(int(self.memory * 1024)),
         )
-        loop = asyncio.get_running_loop()
-        fut = loop.run_in_executor(None, partial_object)
-        job = await fut
 
-    async def _run_task_on_ecs(self):
-        """Run registered task definition on ECS."""
-        ecs = boto3.Session(**self.boto_session_options()).client("ecs")
+        # Register task in separate thread
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, partial_object)
+
+        # Run the task
+        self._debug_log("Running task on ECS...")
         partial_object = partial(
             ecs.run_task,
             taskDefinition=self.ecs_task_family_name,
@@ -246,26 +249,22 @@ class ECSExecutor(AWSExecutor):
                 },
             },
         )
-        loop = asyncio.get_running_loop()
-        fut = loop.run_in_executor(None, partial_object)
-        response = await fut
+        response = await loop.run_in_executor(None, partial_object)
         return response["tasks"][0]["taskArn"]
 
     def _is_valid_subnet_id(self, subnet_id: str) -> bool:
         """Check if the subnet is valid."""
-
         return re.fullmatch(r"subnet-[0-9a-z]{8,17}", subnet_id) is not None
 
     def _is_valid_security_group(self, security_group: str) -> bool:
         """Check if the security group is valid."""
-
         return re.fullmatch(r"sg-[0-9a-z]{8,17}", security_group) is not None
 
     def _debug_log(self, message):
         app_log.debug(f"AWS ECS Executor: {message}")
 
     async def run(self, function: Callable, args: List, kwargs: Dict, task_metadata: Dict):
-
+        """Main run method."""
         dispatch_id = task_metadata["dispatch_id"]
         node_id = task_metadata["node_id"]
 
@@ -278,14 +277,14 @@ class ECSExecutor(AWSExecutor):
         await self._upload_task(function, args, kwargs, task_metadata)
 
         self._debug_log("Submitting task...")
-        await self._register_task_definition(task_metadata, identity)
-        task_arn = await self._run_task_on_ecs()
+        task_arn = await self.submit_task(task_metadata, identity)
 
         self._debug_log(f"Successfully submitted task with ARN: {task_arn}")
 
         await self._poll_task(task_arn)
 
-        return await self.query_result(task_metadata)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.query_result, task_metadata)
 
     async def get_status(self, task_arn: str) -> Tuple[str, int]:
         """Query the status of a previously submitted ECS task.
@@ -299,20 +298,28 @@ class ECSExecutor(AWSExecutor):
         """
         ecs = boto3.Session(**self.boto_session_options()).client("ecs")
         paginator = ecs.get_paginator("list_tasks")
-        page_iterator = paginator.paginate(
+
+        loop = asyncio.get_running_loop()
+
+        partial_object = partial(
+            paginator.paginate,
             cluster=self.ecs_cluster_name,
             family=self.ecs_task_family_name,
             desiredStatus="STOPPED",
         )
+        page_iterator = await loop.run_in_executor(None, partial_object)
 
         for page in page_iterator:
             if len(page["taskArns"]) == 0:
                 break
 
-            tasks = ecs.describe_tasks(
+            partial_object = partial(
+                ecs.describe_tasks,
                 cluster=self.ecs_cluster_name,
                 tasks=page["taskArns"],
-            )["tasks"]
+            )
+            fut = await loop.run_in_executor(None, partial_object)
+            tasks = fut["tasks"]
 
             for task in tasks:
                 if task["taskArn"] == task_arn:
@@ -328,14 +335,7 @@ class ECSExecutor(AWSExecutor):
         return ("TASK_NOT_FOUND", -1)
 
     async def _poll_task(self, task_arn: str) -> None:
-        """Poll an ECS task until completion.
-
-        Args:
-            task_arn: ARN used to identify an ECS task.
-
-        Returns:
-            None
-        """
+        """Poll an ECS task until completion."""
         self._debug_log(f"Polling task with arn {task_arn}...")
         status, exit_code = await self.get_status(task_arn)
 
@@ -354,11 +354,14 @@ class ECSExecutor(AWSExecutor):
         node_id = task_metadata["node_id"]
         task_id = task_arn.split("/")[-1]
 
-        events = logs.get_log_events(
+        partial_object = partial(
+            logs.get_log_events,
             logGroupName=self.log_group_name,
             logStreamName=f"covalent-fargate/covalent-task-{dispatch_id}-{node_id}/{task_id}",
-        )["events"]
-
+        )
+        loop = asyncio.get_running_loop()
+        fut = await loop.run_in_executor(None, partial_object)
+        events = fut["events"]
         return "".join(event["message"] + "\n" for event in events)
 
     async def query_result(self, task_metadata: Dict) -> Tuple[Any, str, str]:
@@ -392,10 +395,10 @@ class ECSExecutor(AWSExecutor):
         Args:
             task_arn: ARN used to identify an ECS task.
             reason: An optional string used to specify a cancellation reason.
-
-        Returns:
-            None
         """
-
         ecs = boto3.Session(**self.boto_session_options()).client("ecs")
-        ecs.stop_task(cluster=self.ecs_cluster_name, task=task_arn, reason=reason)
+        partial_object = partial(
+            ecs.stop_task, cluster=self.ecs_cluster_name, task=task_arn, reason=reason
+        )
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, partial_object)
