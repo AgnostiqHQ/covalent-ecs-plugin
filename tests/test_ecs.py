@@ -111,7 +111,7 @@ class TestECSExecutor:
 
     @pytest.mark.asyncio
     async def test_upload_file_to_s3(self, mock_executor, mocker):
-        """Test method to upload file to s3."""
+        """Test to upload file to s3."""
         boto3_mock = mocker.patch("covalent_ecs_plugin.ecs.boto3")
 
         def some_function():
@@ -126,9 +126,17 @@ class TestECSExecutor:
         )
         boto3_mock.Session().client().upload_file.assert_called_once()
 
-    # TODO - Add test
-    def test_upload_task(self):
-        pass
+    async def test_upload_task(self, mock_executor, mocker):
+        """Test for method to call the upload task method."""
+
+        mocked_executor = mock.MagicMock()
+        mocker.patch("covalent_ecs_plugin.ecs.ECSExecutor", return_value=mocked_executor)
+
+        def some_function():
+            pass
+
+        await mock_executor._upload_task(some_function, (), {}, self.MOCK_TASK_METADATA)
+        mocked_executor._upload_task_to_s3.assert_called_once()
 
     def test_is_valid_subnet_id(self, mock_executor):
         """Test the valid subnet checking method."""
