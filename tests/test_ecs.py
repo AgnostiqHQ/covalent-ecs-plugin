@@ -64,7 +64,7 @@ class TestECSExecutor:
     def mock_executor_config(self, tmp_path):
         MOCK_CREDENTIALS_FILE: Path = tmp_path / "credentials"
         MOCK_CREDENTIALS_FILE.touch()
-        config = {
+        return {
             "profile": self.MOCK_PROFILE,
             "s3_bucket_name": self.MOCK_S3_BUCKET_NAME,
             "ecs_cluster_name": self.MOCK_ECS_CLUSTER_NAME,
@@ -78,10 +78,9 @@ class TestECSExecutor:
             "memory": self.MOCK_MEMORY,
             "poll_freq": self.MOCK_POLL_FREQ,
         }
-        return config
 
     @pytest.fixture
-    def mock_executor(self, mock_executor_config, mocker):
+    def mock_executor(self, mock_executor_config):
         # mocker.patch("tempfile")
         return ECSExecutor(**mock_executor_config)
 
