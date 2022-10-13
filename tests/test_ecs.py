@@ -148,12 +148,9 @@ class TestECSExecutor:
         """Test submit task method."""
         MOCK_IDENTITY = {"Account": 1234}
         boto3_mock = mocker.patch("covalent_ecs_plugin.ecs.boto3")
-        # threadpool_executor_mock = AsyncMock()
-        # mocker.patch("covalent_ecs_plugin.ecs._execute_partial_in_threadpool", return_value=threadpool_executor_mock)
-        future = await mock_executor.submit_task(self.MOCK_TASK_METADATA, MOCK_IDENTITY)
+        await mock_executor.submit_task(self.MOCK_TASK_METADATA, MOCK_IDENTITY)
         boto3_mock.Session().client().register_task_definition.assert_called_once()
         boto3_mock.Session().client().run_task.assert_called_once()
-        # threadpool_executor_mock.assert_called_once()
 
     def test_is_valid_subnet_id(self, mock_executor):
         """Test the valid subnet checking method."""
