@@ -23,6 +23,7 @@
 import os
 from pathlib import Path
 from unittest import mock
+from unittest.mock import AsyncMock
 
 import cloudpickle as pickle
 import pytest
@@ -126,17 +127,21 @@ class TestECSExecutor:
         )
         boto3_mock.Session().client().upload_file.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_upload_task(self, mock_executor, mocker):
         """Test for method to call the upload task method."""
 
-        mocked_executor = mock.MagicMock()
-        mocker.patch("covalent_ecs_plugin.ecs.ECSExecutor", return_value=mocked_executor)
+        def some_function(x):
+            return x
 
-        def some_function():
-            pass
+        upload_to_s3_mock = mocker.patch(
+            "covalent_ecs_plugin.ecs.ECSExecutor._upload_task_to_s3", return_value=AsyncMock()
+        )
 
-        await mock_executor._upload_task(some_function, (), {}, self.MOCK_TASK_METADATA)
-        mocked_executor._upload_task_to_s3.assert_called_once()
+        future = await mock_executor._upload_task(some_function, (1), {}, self.MOCK_TASK_METADATA)
+        upload_to_s3_mock.assert_called_once_with(
+            self.MOCK_DISPATCH_ID, self.MOCK_NODE_ID, some_function, (1), {}
+        )
 
     def test_is_valid_subnet_id(self, mock_executor):
         """Test the valid subnet checking method."""
