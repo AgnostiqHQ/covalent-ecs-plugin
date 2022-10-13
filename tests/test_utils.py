@@ -20,7 +20,20 @@
 
 """Unit tests for AWS ECS executor utils file."""
 
+from functools import partial
 
-# TODO - Add test
-def test_execute_partial_in_threadpool():
-    pass
+import pytest
+
+from covalent_ecs_plugin.utils import _execute_partial_in_threadpool
+
+
+@pytest.mark.asyncio
+async def test_execute_partial_in_threadpool():
+    """Test method to execute partial function in asyncio threadpool."""
+
+    def test_func(x):
+        return x
+
+    partial_func = partial(test_func, x=1)
+    future = await _execute_partial_in_threadpool(partial_func)
+    assert future == 1

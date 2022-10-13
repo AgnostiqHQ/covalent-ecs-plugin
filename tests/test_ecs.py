@@ -21,11 +21,8 @@
 """Unit tests for AWS ECS executor."""
 
 import os
-import tempfile
-from base64 import b64encode
 from pathlib import Path
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock
 
 import cloudpickle as pickle
 import pytest
@@ -131,7 +128,7 @@ class TestECSExecutor:
         boto3_mock.Session().client().upload_file.assert_called_once()
 
     # TODO - Add test
-    def test_upload_task():
+    def test_upload_task(self):
         pass
 
     def test_is_valid_subnet_id(self, mock_executor):
