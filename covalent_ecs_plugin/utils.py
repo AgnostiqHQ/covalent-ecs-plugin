@@ -25,5 +25,4 @@ import asyncio
 
 async def _execute_partial_in_threadpool(partial_func):
     loop = asyncio.get_running_loop()
-    future = await loop.run_in_executor(None, partial_func)
-    return future
+    return await loop.run_in_executor(None, partial_func)
