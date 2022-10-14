@@ -17,3 +17,23 @@
 # FITNESS FOR A PARTICULAR PURPOSE. See the License for more details.
 #
 # Relief from the License may be granted by purchasing a commercial license.
+
+"""Unit tests for AWS ECS executor utils file."""
+
+from functools import partial
+
+import pytest
+
+from covalent_ecs_plugin.utils import _execute_partial_in_threadpool
+
+
+@pytest.mark.asyncio
+async def test_execute_partial_in_threadpool():
+    """Test method to execute partial function in asyncio threadpool."""
+
+    def test_func(x):
+        return x
+
+    partial_func = partial(test_func, x=1)
+    future = await _execute_partial_in_threadpool(partial_func)
+    assert future == 1

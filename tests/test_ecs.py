@@ -21,11 +21,9 @@
 """Unit tests for AWS ECS executor."""
 
 import os
-import tempfile
-from base64 import b64encode
 from pathlib import Path
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import cloudpickle as pickle
 import pytest
@@ -67,7 +65,7 @@ class TestECSExecutor:
     def mock_executor_config(self, tmp_path):
         MOCK_CREDENTIALS_FILE: Path = tmp_path / "credentials"
         MOCK_CREDENTIALS_FILE.touch()
-        config = {
+        return {
             "profile": self.MOCK_PROFILE,
             "s3_bucket_name": self.MOCK_S3_BUCKET_NAME,
             "ecs_cluster_name": self.MOCK_ECS_CLUSTER_NAME,
@@ -81,10 +79,9 @@ class TestECSExecutor:
             "memory": self.MOCK_MEMORY,
             "poll_freq": self.MOCK_POLL_FREQ,
         }
-        return config
 
     @pytest.fixture
-    def mock_executor(self, mock_executor_config, mocker):
+    def mock_executor(self, mock_executor_config):
         # mocker.patch("tempfile")
         return ECSExecutor(**mock_executor_config)
 
@@ -115,16 +112,45 @@ class TestECSExecutor:
 
     @pytest.mark.asyncio
     async def test_upload_file_to_s3(self, mock_executor, mocker):
-        """Test method to upload file to s3."""
+        """Test to upload file to s3."""
         boto3_mock = mocker.patch("covalent_ecs_plugin.ecs.boto3")
 
         def some_function():
             pass
 
-        await mock_executor._upload_task(
-            some_function, ("some_arg"), {"some": "kwarg"}, self.MOCK_TASK_METADATA
+        await mock_executor._upload_task_to_s3(
+            some_function,
+            self.MOCK_DISPATCH_ID,
+            self.MOCK_NODE_ID,
+            ("some_arg"),
+            {"some": "kwarg"},
         )
         boto3_mock.Session().client().upload_file.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_upload_task(self, mock_executor, mocker):
+        """Test for method to call the upload task method."""
+
+        def some_function(x):
+            return x
+
+        upload_to_s3_mock = mocker.patch(
+            "covalent_ecs_plugin.ecs.ECSExecutor._upload_task_to_s3", return_value=AsyncMock()
+        )
+
+        await mock_executor._upload_task(some_function, (1), {}, self.MOCK_TASK_METADATA)
+        upload_to_s3_mock.assert_called_once_with(
+            self.MOCK_DISPATCH_ID, self.MOCK_NODE_ID, some_function, (1), {}
+        )
+
+    @pytest.mark.asyncio
+    async def test_submit_task(self, mock_executor, mocker):
+        """Test submit task method."""
+        MOCK_IDENTITY = {"Account": 1234}
+        boto3_mock = mocker.patch("covalent_ecs_plugin.ecs.boto3")
+        await mock_executor.submit_task(self.MOCK_TASK_METADATA, MOCK_IDENTITY)
+        boto3_mock.Session().client().register_task_definition.assert_called_once()
+        boto3_mock.Session().client().run_task.assert_called_once()
 
     def test_is_valid_subnet_id(self, mock_executor):
         """Test the valid subnet checking method."""

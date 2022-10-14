@@ -24,6 +24,7 @@ import asyncio
 import os
 import re
 import tempfile
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
@@ -31,8 +32,9 @@ import boto3
 import cloudpickle as pickle
 from covalent._shared_files.config import get_config
 from covalent._shared_files.logger import app_log
-from covalent._shared_files.util_classes import DispatchInfo
 from covalent_aws_plugins import AWSExecutor
+
+from .utils import _execute_partial_in_threadpool
 
 _EXECUTOR_PLUGIN_DEFAULTS = {
     "credentials": os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
@@ -146,11 +148,8 @@ class ECSExecutor(AWSExecutor):
                 f"{self.ecs_task_security_group_id} is not a valid security group id. Please set a valid security group id either in the ECS executor definition or in the Covalent config file."
             )
 
-    async def _upload_task(self, function, args, kwargs, task_metadata) -> None:
-
-        dispatch_id = task_metadata["dispatch_id"]
-        node_id = task_metadata["node_id"]
-
+    async def _upload_task_to_s3(self, dispatch_id, node_id, function, args, kwargs) -> None:
+        """Upload task to S3."""
         s3 = boto3.Session(**self.boto_session_options()).client("s3")
         s3_object_filename = FUNC_FILENAME.format(dispatch_id=dispatch_id, node_id=node_id)
 
@@ -160,95 +159,109 @@ class ECSExecutor(AWSExecutor):
             function_file.flush()
             s3.upload_file(function_file.name, self.s3_bucket_name, s3_object_filename)
 
-    async def submit_task(self, task_metadata: Dict, identity: Dict) -> str:
+    async def _upload_task(
+        self, function: Callable, args: List, kwargs: Dict, task_metadata: Dict
+    ):
+        """Wrapper to make boto3 s3 upload calls async."""
+        dispatch_id = task_metadata["dispatch_id"]
+        node_id = task_metadata["node_id"]
+        partial_func = partial(
+            self._upload_task_to_s3,
+            dispatch_id,
+            node_id,
+            function,
+            args,
+            kwargs,
+        )
+        return await _execute_partial_in_threadpool(partial_func)
 
+    async def submit_task(self, task_metadata: Dict, identity: Dict) -> Any:
+        """Submit task to ECS."""
         dispatch_id = task_metadata["dispatch_id"]
         node_id = task_metadata["node_id"]
         container_name = CONTAINER_NAME.format(dispatch_id=dispatch_id, node_id=node_id)
         account = identity["Account"]
 
-        dispatch_info = DispatchInfo(dispatch_id)
-        with self.get_dispatch_context(dispatch_info):
+        ecs = boto3.Session(**self.boto_session_options()).client("ecs")
 
-            ecs = boto3.Session(**self.boto_session_options()).client("ecs")
-
-            # Register the task definition
-            self._debug_log("Registering ECS task definition...")
-            ecs.register_task_definition(
-                family=self.ecs_task_family_name,
-                taskRoleArn=self.ecs_task_role_name,
-                executionRoleArn=f"arn:aws:iam::{account}:role/{self.execution_role}",
-                networkMode="awsvpc",
-                requiresCompatibilities=["FARGATE"],
-                containerDefinitions=[
-                    {
-                        "name": container_name,
-                        "image": COVALENT_EXEC_BASE_URI,
-                        "essential": True,
-                        "logConfiguration": {
-                            "logDriver": "awslogs",
-                            "options": {
-                                "awslogs-region": self.region,
-                                "awslogs-group": self.log_group_name,
-                                "awslogs-create-group": "true",
-                                "awslogs-stream-prefix": "covalent-fargate",
-                            },
+        # Register the task definition
+        self._debug_log("Registering ECS task definition...")
+        partial_func = partial(
+            ecs.register_task_definition,
+            family=self.ecs_task_family_name,
+            taskRoleArn=self.ecs_task_role_name,
+            executionRoleArn=f"arn:aws:iam::{account}:role/{self.execution_role}",
+            networkMode="awsvpc",
+            requiresCompatibilities=["FARGATE"],
+            containerDefinitions=[
+                {
+                    "name": container_name,
+                    "image": COVALENT_EXEC_BASE_URI,
+                    "essential": True,
+                    "logConfiguration": {
+                        "logDriver": "awslogs",
+                        "options": {
+                            "awslogs-region": self.region,
+                            "awslogs-group": self.log_group_name,
+                            "awslogs-create-group": "true",
+                            "awslogs-stream-prefix": "covalent-fargate",
                         },
-                        "environment": [
-                            {"name": "S3_BUCKET_NAME", "value": self.s3_bucket_name},
-                            {
-                                "name": "COVALENT_TASK_FUNC_FILENAME",
-                                "value": FUNC_FILENAME.format(
-                                    dispatch_id=dispatch_id, node_id=node_id
-                                ),
-                            },
-                            {
-                                "name": "RESULT_FILENAME",
-                                "value": RESULT_FILENAME.format(
-                                    dispatch_id=dispatch_id, node_id=node_id
-                                ),
-                            },
-                        ],
                     },
-                ],
-                cpu=str(int(self.vcpu * 1024)),
-                memory=str(int(self.memory * 1024)),
-            )
-
-            # Run the task
-            response = ecs.run_task(
-                taskDefinition=self.ecs_task_family_name,
-                launchType="FARGATE",
-                cluster=self.ecs_cluster_name,
-                count=1,
-                networkConfiguration={
-                    "awsvpcConfiguration": {
-                        "subnets": [self.ecs_task_subnet_id],
-                        "securityGroups": [self.ecs_task_security_group_id],
-                        # This is only needed if we're using public subnets
-                        "assignPublicIp": "ENABLED",
-                    },
+                    "environment": [
+                        {"name": "S3_BUCKET_NAME", "value": self.s3_bucket_name},
+                        {
+                            "name": "COVALENT_TASK_FUNC_FILENAME",
+                            "value": FUNC_FILENAME.format(
+                                dispatch_id=dispatch_id, node_id=node_id
+                            ),
+                        },
+                        {
+                            "name": "RESULT_FILENAME",
+                            "value": RESULT_FILENAME.format(
+                                dispatch_id=dispatch_id, node_id=node_id
+                            ),
+                        },
+                    ],
                 },
-            )
-            # Return this task ARN in an async setting
-            task_arn = response["tasks"][0]["taskArn"]
-            return task_arn
+            ],
+            cpu=str(int(self.vcpu * 1024)),
+            memory=str(int(self.memory * 1024)),
+        )
+        await _execute_partial_in_threadpool(partial_func)
+
+        # Run the task
+        self._debug_log("Running task on ECS...")
+        partial_func = partial(
+            ecs.run_task,
+            taskDefinition=self.ecs_task_family_name,
+            launchType="FARGATE",
+            cluster=self.ecs_cluster_name,
+            count=1,
+            networkConfiguration={
+                "awsvpcConfiguration": {
+                    "subnets": [self.ecs_task_subnet_id],
+                    "securityGroups": [self.ecs_task_security_group_id],
+                    # This is only needed if we're using public subnets
+                    "assignPublicIp": "ENABLED",
+                },
+            },
+        )
+        response = await _execute_partial_in_threadpool(partial_func)
+        return response["tasks"][0]["taskArn"]
 
     def _is_valid_subnet_id(self, subnet_id: str) -> bool:
         """Check if the subnet is valid."""
-
         return re.fullmatch(r"subnet-[0-9a-z]{8,17}", subnet_id) is not None
 
     def _is_valid_security_group(self, security_group: str) -> bool:
         """Check if the security group is valid."""
-
         return re.fullmatch(r"sg-[0-9a-z]{8,17}", security_group) is not None
 
     def _debug_log(self, message):
         app_log.debug(f"AWS ECS Executor: {message}")
 
     async def run(self, function: Callable, args: List, kwargs: Dict, task_metadata: Dict):
-
+        """Main run method."""
         dispatch_id = task_metadata["dispatch_id"]
         node_id = task_metadata["node_id"]
 
@@ -266,8 +279,8 @@ class ECSExecutor(AWSExecutor):
         self._debug_log(f"Successfully submitted task with ARN: {task_arn}")
 
         await self._poll_task(task_arn)
-
-        return await self.query_result(task_metadata)
+        partial_func = partial(self.query_result, task_metadata)
+        return await _execute_partial_in_threadpool(partial_func)
 
     async def get_status(self, task_arn: str) -> Tuple[str, int]:
         """Query the status of a previously submitted ECS task.
@@ -281,20 +294,25 @@ class ECSExecutor(AWSExecutor):
         """
         ecs = boto3.Session(**self.boto_session_options()).client("ecs")
         paginator = ecs.get_paginator("list_tasks")
-        page_iterator = paginator.paginate(
+        partial_func = partial(
+            paginator.paginate,
             cluster=self.ecs_cluster_name,
             family=self.ecs_task_family_name,
             desiredStatus="STOPPED",
         )
+        page_iterator = await _execute_partial_in_threadpool(partial_func)
 
         for page in page_iterator:
             if len(page["taskArns"]) == 0:
                 break
 
-            tasks = ecs.describe_tasks(
+            partial_func = partial(
+                ecs.describe_tasks,
                 cluster=self.ecs_cluster_name,
                 tasks=page["taskArns"],
-            )["tasks"]
+            )
+            future = await _execute_partial_in_threadpool(partial_func)
+            tasks = future["tasks"]
 
             for task in tasks:
                 if task["taskArn"] == task_arn:
@@ -310,14 +328,7 @@ class ECSExecutor(AWSExecutor):
         return ("TASK_NOT_FOUND", -1)
 
     async def _poll_task(self, task_arn: str) -> None:
-        """Poll an ECS task until completion.
-
-        Args:
-            task_arn: ARN used to identify an ECS task.
-
-        Returns:
-            None
-        """
+        """Poll an ECS task until completion."""
         self._debug_log(f"Polling task with arn {task_arn}...")
         status, exit_code = await self.get_status(task_arn)
 
@@ -336,11 +347,13 @@ class ECSExecutor(AWSExecutor):
         node_id = task_metadata["node_id"]
         task_id = task_arn.split("/")[-1]
 
-        events = logs.get_log_events(
+        partial_func = partial(
+            logs.get_log_events,
             logGroupName=self.log_group_name,
             logStreamName=f"covalent-fargate/covalent-task-{dispatch_id}-{node_id}/{task_id}",
-        )["events"]
-
+        )
+        future = await _execute_partial_in_threadpool(partial_func)
+        events = future["events"]
         return "".join(event["message"] + "\n" for event in events)
 
     async def query_result(self, task_metadata: Dict) -> Tuple[Any, str, str]:
@@ -374,10 +387,9 @@ class ECSExecutor(AWSExecutor):
         Args:
             task_arn: ARN used to identify an ECS task.
             reason: An optional string used to specify a cancellation reason.
-
-        Returns:
-            None
         """
-
         ecs = boto3.Session(**self.boto_session_options()).client("ecs")
-        ecs.stop_task(cluster=self.ecs_cluster_name, task=task_arn, reason=reason)
+        partial_func = partial(
+            ecs.stop_task, cluster=self.ecs_cluster_name, task=task_arn, reason=reason
+        )
+        await _execute_partial_in_threadpool(partial_func)
