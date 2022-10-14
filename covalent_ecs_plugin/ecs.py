@@ -165,9 +165,7 @@ class ECSExecutor(AWSExecutor):
         """Wrapper to make boto3 s3 upload calls async."""
         dispatch_id = task_metadata["dispatch_id"]
         node_id = task_metadata["node_id"]
-        loop = asyncio.get_running_loop()
-        future = loop.run_in_executor(
-            None,
+        partial_func = partial(
             self._upload_task_to_s3,
             dispatch_id,
             node_id,
@@ -175,7 +173,7 @@ class ECSExecutor(AWSExecutor):
             args,
             kwargs,
         )
-        return await future
+        return await _execute_partial_in_threadpool(partial_func)
 
     async def submit_task(self, task_metadata: Dict, identity: Dict) -> Any:
         """Submit task to ECS."""
@@ -281,9 +279,8 @@ class ECSExecutor(AWSExecutor):
         self._debug_log(f"Successfully submitted task with ARN: {task_arn}")
 
         await self._poll_task(task_arn)
-
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, self.query_result, task_metadata)
+        partial_func = partial(self.query_result, task_metadata)
+        return await _execute_partial_in_threadpool(partial_func)
 
     async def get_status(self, task_arn: str) -> Tuple[str, int]:
         """Query the status of a previously submitted ECS task.
