@@ -85,8 +85,8 @@ class ECSExecutor(AWSExecutor):
 
     def __init__(
         self,
-        s3_bucket_name: str,
-        ecs_task_security_group_id: str,
+        s3_bucket_name: str = None,
+        ecs_task_security_group_id: str = None,
         ecs_cluster_name: str = None,
         ecs_task_family_name: str = None,
         ecs_task_execution_role_name: str = None,
