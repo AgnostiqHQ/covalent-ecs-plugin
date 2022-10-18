@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Fixed
+
+- Ensure that async functions are not being passed off to the threadpool.
+
 ## [0.16.0] - 2022-10-14
 
 ### Changed

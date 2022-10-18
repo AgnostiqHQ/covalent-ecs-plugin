@@ -34,7 +34,7 @@ from covalent._shared_files.config import get_config
 from covalent._shared_files.logger import app_log
 from covalent_aws_plugins import AWSExecutor
 
-from .utils import _execute_partial_in_threadpool
+from .utils import _execute_partial_in_threadpool, _load_pickle_file
 
 _EXECUTOR_PLUGIN_DEFAULTS = {
     "credentials": os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
@@ -148,7 +148,7 @@ class ECSExecutor(AWSExecutor):
                 f"{self.ecs_task_security_group_id} is not a valid security group id. Please set a valid security group id either in the ECS executor definition or in the Covalent config file."
             )
 
-    async def _upload_task_to_s3(self, dispatch_id, node_id, function, args, kwargs) -> None:
+    def _upload_task_to_s3(self, dispatch_id, node_id, function, args, kwargs) -> None:
         """Upload task to S3."""
         s3 = boto3.Session(**self.boto_session_options()).client("s3")
         s3_object_filename = FUNC_FILENAME.format(dispatch_id=dispatch_id, node_id=node_id)
@@ -279,8 +279,9 @@ class ECSExecutor(AWSExecutor):
         self._debug_log(f"Successfully submitted task with ARN: {task_arn}")
 
         await self._poll_task(task_arn)
-        partial_func = partial(self.query_result, task_metadata)
-        return await _execute_partial_in_threadpool(partial_func)
+
+        self._debug_log("Querying result...")
+        return await self.query_result(task_metadata)
 
     async def get_status(self, task_arn: str) -> Tuple[str, int]:
         """Query the status of a previously submitted ECS task.
@@ -364,7 +365,6 @@ class ECSExecutor(AWSExecutor):
         Returns:
             result: The task's result, as a Python object.
         """
-
         s3 = boto3.Session(**self.boto_session_options()).client("s3")
 
         dispatch_id = task_metadata["dispatch_id"]
@@ -375,10 +375,14 @@ class ECSExecutor(AWSExecutor):
         self._debug_log(
             f"Downloading {result_filename} from bucket {self.s3_bucket_name} to local path ${local_result_filename}"
         )
-        s3.download_file(self.s3_bucket_name, result_filename, local_result_filename)
-        with open(local_result_filename, "rb") as f:
-            result = pickle.load(f)
-        os.remove(local_result_filename)
+        partial_func = partial(
+            s3.download_file, self.s3_bucket_name, result_filename, local_result_filename
+        )
+        await _execute_partial_in_threadpool(partial_func)
+
+        result = await _execute_partial_in_threadpool(
+            partial(_load_pickle_file, local_result_filename)
+        )
         return result
 
     async def cancel(self, task_arn: str, reason: str = "None") -> None:
