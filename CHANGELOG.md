@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Fixed
+
+- Fixed the issue resulting from several async executions from covalent to AWS ECS revision ID
+
+### Changed
+
+- Update README.md
+- Removed `ecs_task_family_name` argument from constructor as the family name is dynamically generated for each job submission
+
 ## [0.18.0] - 2022-10-27
 
 ### Changed 
