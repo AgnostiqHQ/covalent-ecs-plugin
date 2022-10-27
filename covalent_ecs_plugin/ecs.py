@@ -88,7 +88,6 @@ class ECSExecutor(AWSExecutor):
         s3_bucket_name: str = None,
         ecs_task_security_group_id: str = None,
         ecs_cluster_name: str = None,
-        ecs_task_family_name: str = None,
         ecs_task_execution_role_name: str = None,
         ecs_task_role_name: str = None,
         ecs_task_subnet_id: str = None,
@@ -116,9 +115,7 @@ class ECSExecutor(AWSExecutor):
         )
 
         self.ecs_cluster_name = ecs_cluster_name or get_config("executors.ecs.ecs_cluster_name")
-        self.ecs_task_family_name = ecs_task_family_name or get_config(
-            "executors.ecs.ecs_task_family_name"
-        )
+        self.ecs_task_family_name = ""
 
         self.ecs_task_role_name = ecs_task_role_name or get_config(
             "executors.ecs.ecs_task_role_name"
@@ -186,6 +183,7 @@ class ECSExecutor(AWSExecutor):
 
         # Register the task definition
         self._debug_log("Registering ECS task definition...")
+        self.ecs_task_family_name = f"{dispatch_id}-{node_id}"
         partial_func = partial(
             ecs.register_task_definition,
             family=self.ecs_task_family_name,

@@ -41,7 +41,6 @@ executor = ct.executor.ECSExecutor(
     s3_bucket_name="covalent-fargate-task-resources",
     ecr_repo_name="covalent-fargate-task-images",
     ecs_cluster_name="covalent-fargate-cluster",
-    ecs_task_family_name="covalent-fargate-tasks",
     ecs_task_execution_role_name="ecsTaskExecutionRole",
     ecs_task_role_name="CovalentFargateTaskRole",
     ecs_task_subnet_id="subnet-871545e1",
@@ -130,7 +129,6 @@ In order for workflows to leverage this executor, users must ensure that all the
 | S3 Bucket     | s3_bucket_name | The name of the S3 bucket where objects are stored |
 | ECR repository     | ecr_repo_name | The name of the ECR repository where task images are stored  |
 | ECS Cluster     | ecs_cluster_name   | The name of the ECS cluster on which your tasks are executed  |
-| ECS Task Family     | ecs_task_family_name  | The name of the task family that specifies container information for a user, project, or experiment |
 | VPC Subnet    | ecs_task_subnet_id   | The ID of the subnet where instances are created |
 | Security group     | ecs_task_security_group_id   | The ID of the security group for task instances |
 | Cloudwatch log group     | ecs_task_log_group_name   | The name of the CloudWatch log group where container logs are stored |
