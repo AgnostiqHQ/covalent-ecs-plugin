@@ -183,7 +183,7 @@ class ECSExecutor(AWSExecutor):
 
         # Register the task definition
         self._debug_log("Registering ECS task definition...")
-        self.ecs_task_family_name=f"{dispatch_id}-{node_id}"
+        self.ecs_task_family_name = f"{dispatch_id}-{node_id}"
         partial_func = partial(
             ecs.register_task_definition,
             family=self.ecs_task_family_name,
