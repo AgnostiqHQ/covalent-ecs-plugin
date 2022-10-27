@@ -60,7 +60,7 @@ EXECUTOR_PLUGIN_NAME = "ECSExecutor"
 FUNC_FILENAME = "func-{dispatch_id}-{node_id}.pkl"
 RESULT_FILENAME = "result-{dispatch_id}-{node_id}.pkl"
 CONTAINER_NAME = "covalent-task-{dispatch_id}-{node_id}"
-COVALENT_EXEC_BASE_URI = "public.ecr.aws/covalent/covalent-executor-base:latest"
+COVALENT_EXEC_BASE_URI = "public.ecr.aws/covalent/covalent-executor-base:stable"
 
 
 class ECSExecutor(AWSExecutor):
