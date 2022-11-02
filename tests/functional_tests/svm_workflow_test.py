@@ -66,4 +66,4 @@ def test_svm_worklow():
 
     print(result)
 
-    assert status == str(ct.status.FAILED)
+    assert status == str(ct.status.COMPLETED)
