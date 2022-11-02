@@ -4,7 +4,7 @@ load_dotenv()
 
 import os
 
-import covalent as ct
+from covalent_ecs_plugin.ecs import ECSExecutor
 
 executor_config = {
     "s3_bucket_name": os.getenv("executor_s3_bucket_name"),
@@ -24,4 +24,4 @@ executor_config = {
 print("Using Executor Configuration:")
 print(executor_config)
 
-executor = ct.executor.ECSExecutor(**executor_config)
+executor = ECSExecutor(**executor_config)
