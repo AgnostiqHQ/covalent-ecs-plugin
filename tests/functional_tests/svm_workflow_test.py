@@ -21,8 +21,6 @@
 
 import covalent as ct
 import pytest
-from numpy.random import permutation
-from sklearn import datasets, svm
 
 from tests.functional_tests.fixtures.executor import executor
 
@@ -31,6 +29,9 @@ deps_pip = ct.DepsPip(packages=["numpy==1.22.4", "scikit-learn==1.1.2"])
 
 @pytest.mark.functional_tests
 def test_svm_worklow():
+    from numpy.random import permutation
+    from sklearn import datasets, svm
+
     @ct.electron
     def load_data():
         iris = datasets.load_iris()
