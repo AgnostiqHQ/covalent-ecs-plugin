@@ -37,10 +37,9 @@ from covalent_aws_plugins import AWSExecutor
 from .utils import _execute_partial_in_threadpool, _load_pickle_file
 
 _EXECUTOR_PLUGIN_DEFAULTS = {
-    "credentials": os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
-    or os.path.join(os.environ["HOME"], ".aws/credentials"),
-    "profile": os.environ.get("AWS_PROFILE") or "default",
-    "region": os.environ.get("AWS_REGION") or "us-east-1",
+    "credentials": "",
+    "profile": "",
+    "region": "",
     "s3_bucket_name": "covalent-fargate-task-resources",
     "ecs_cluster_name": "covalent-fargate-cluster",
     "ecs_task_family_name": "covalent-fargate-tasks",
