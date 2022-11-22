@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Functional tests using pytest and .env file configuration
 
+## [0.22.0] - 2022-11-22
+
+### Changed
+
+- Not setting default values for profile, region, and credentials_file
+
 ## [0.21.0] - 2022-10-28
 
 ### Changed
