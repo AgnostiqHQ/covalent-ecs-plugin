@@ -198,7 +198,6 @@ class ECSExecutor(AWSExecutor):
                     "logConfiguration": {
                         "logDriver": "awslogs",
                         "options": {
-                            "awslogs-region": self.region,
                             "awslogs-group": self.log_group_name,
                             "awslogs-create-group": "true",
                             "awslogs-stream-prefix": "covalent-fargate",
