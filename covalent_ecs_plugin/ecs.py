@@ -180,6 +180,7 @@ class ECSExecutor(AWSExecutor):
 
         boto_session = boto3.Session(**self.boto_session_options())
         ecs = boto_session.client("ecs")
+
         region = boto_session.region_name
 
         # Register the task definition
