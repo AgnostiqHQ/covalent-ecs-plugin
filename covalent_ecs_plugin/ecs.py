@@ -178,7 +178,10 @@ class ECSExecutor(AWSExecutor):
         container_name = CONTAINER_NAME.format(dispatch_id=dispatch_id, node_id=node_id)
         account = identity["Account"]
 
-        ecs = boto3.Session(**self.boto_session_options()).client("ecs")
+        boto_session = boto3.Session(**self.boto_session_options())
+        ecs = boto_session.client("ecs")
+
+        region = boto_session.region_name
 
         # Register the task definition
         self._debug_log("Registering ECS task definition...")
@@ -198,7 +201,7 @@ class ECSExecutor(AWSExecutor):
                     "logConfiguration": {
                         "logDriver": "awslogs",
                         "options": {
-                            "awslogs-region": self.region,
+                            "awslogs-region": region,
                             "awslogs-group": self.log_group_name,
                             "awslogs-create-group": "true",
                             "awslogs-stream-prefix": "covalent-fargate",
