@@ -21,14 +21,12 @@
 import covalent as ct
 import pytest
 
-from tests.functional_tests.fixtures.executor import executor
-
 # Basic Workflow
 
 
 @pytest.mark.functional_tests
 def test_basic_workflow():
-    @ct.electron(executor=executor)
+    @ct.electron(executor="ecs")
     def join_words(a, b):
         return ", ".join([a, b])
 
