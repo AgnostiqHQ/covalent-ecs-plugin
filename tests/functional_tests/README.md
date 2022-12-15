@@ -16,7 +16,7 @@ Copy create `.env` file:
 cp .env.example .env
 ```
 
-Fill in the configuration values either manually or from terraform output.
+Fill in the configuration values for the ECS executor either manually or from the Terraform output.
 
 ### 2. Run Functional Tests
 
