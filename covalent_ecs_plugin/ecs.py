@@ -101,7 +101,6 @@ class ECSExecutor(AWSExecutor):
         poll_freq: int = None,
         **kwargs,
     ):
-
         super().__init__(
             region=region or get_config("executors.ecs.region"),
             credentials_file=credentials or get_config("executors.ecs.credentials"),

@@ -32,7 +32,6 @@ from covalent_ecs_plugin.ecs import FUNC_FILENAME, RESULT_FILENAME, ECSExecutor
 
 
 class TestECSExecutor:
-
     MOCK_PROFILE = "my_profile"
     MOCK_S3_BUCKET_NAME = "s3-bucket"
     MOCK_ECS_CLUSTER_NAME = "ecs-cluster"
