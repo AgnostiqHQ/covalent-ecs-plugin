@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Removed
+
+- References to `ecs_task_family_name` and `self._cwd` since this is not used anymore.
+
 ## [0.27.0] - 2022-12-15
 
 ### Changed
