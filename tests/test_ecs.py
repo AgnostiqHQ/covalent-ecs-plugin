@@ -172,10 +172,7 @@ class TestECSExecutor:
     @pytest.mark.asyncio
     async def test_query_result(self, mocker, mock_executor, tmp_path: Path):
         """Test the method to query the result."""
-
-        mock_cwd = tmp_path
-        mock_executor._cwd = mock_cwd.resolve()
-        mock_local_result_path = mock_cwd / self.MOCK_RESULT_FILENAME
+        mock_local_result_path = Path(mock_executor.cache_dir) / self.MOCK_RESULT_FILENAME
         mock_local_result_path.touch()
 
         MOCK_RESULT_CONTENTS = "mock_result"
