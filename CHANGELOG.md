@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Changed
+
+- Removed redundant `ecr_repo_name` kwarg from README
+
 ## [0.27.0] - 2022-12-15
 
 ### Changed

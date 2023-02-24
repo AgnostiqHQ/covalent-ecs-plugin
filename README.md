@@ -39,7 +39,6 @@ deps_pip = ct.DepsPip(
 
 executor = ct.executor.ECSExecutor(
     s3_bucket_name="covalent-fargate-task-resources",
-    ecr_repo_name="covalent-fargate-task-images",
     ecs_cluster_name="covalent-fargate-cluster",
     ecs_task_execution_role_name="ecsTaskExecutionRole",
     ecs_task_role_name="CovalentFargateTaskRole",
