@@ -127,8 +127,8 @@ class ECSExecutor(AWSExecutor):
         self.memory = memory or get_config("executors.ecs.memory")
         self._ecs_task_family_name = ""
 
-        if self._cache_dir == "":
-            self._cache_dir = get_config("executors.ecs.cache_dir")
+        if self.cache_dir == "":
+            self.cache_dir = get_config("executors.ecs.cache_dir")
 
         if not self._is_valid_subnet_id(self.ecs_task_subnet_id):
             app_log.error(
@@ -139,14 +139,6 @@ class ECSExecutor(AWSExecutor):
             app_log.error(
                 f"{self.ecs_task_security_group_id} is not a valid security group id. Please set a valid security group id either in the ECS executor definition or in the Covalent config file."
             )
-
-    @property
-    def cache_dir(self):
-        """Cache directory used by this executor for temporary files."""
-        cache_dir_path = Path(self._cache_dir)
-        if not cache_dir_path.exists():
-            cache_dir_path.mkdir(parents=True, exist_ok=True)
-        return self._cache_dir
 
     def _upload_task_to_s3(self, dispatch_id, node_id, function, args, kwargs) -> None:
         """Upload task to S3."""
@@ -189,7 +181,6 @@ class ECSExecutor(AWSExecutor):
 
         # Register the task definition
         self._debug_log("Registering ECS task definition...")
-        self._ecs_task_family_name = f"{dispatch_id}-{node_id}"
         partial_func = partial(
             ecs.register_task_definition,
             family=self._ecs_task_family_name,
@@ -268,6 +259,11 @@ class ECSExecutor(AWSExecutor):
         """Main run method."""
         dispatch_id = task_metadata["dispatch_id"]
         node_id = task_metadata["node_id"]
+
+        if not (cache_dir_path := Path(self.cache_dir).exists()):
+            cache_dir_path.mkdir(parents=True, exist_ok=True)
+
+        self._ecs_task_family_name = f"{dispatch_id}-{node_id}"
 
         self._debug_log(f"Executing Dispatch ID {dispatch_id} Node {node_id}")
 
