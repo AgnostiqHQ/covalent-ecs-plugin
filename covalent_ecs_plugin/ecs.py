@@ -260,7 +260,7 @@ class ECSExecutor(AWSExecutor):
         dispatch_id = task_metadata["dispatch_id"]
         node_id = task_metadata["node_id"]
 
-        if not (cache_dir_path := Path(self.cache_dir).exists()):
+        if not (cache_dir_path := Path(self.cache_dir)).exists():
             cache_dir_path.mkdir(parents=True, exist_ok=True)
 
         self._ecs_task_family_name = f"{dispatch_id}-{node_id}"
