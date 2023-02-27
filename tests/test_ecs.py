@@ -21,6 +21,7 @@
 """Unit tests for AWS ECS executor."""
 
 import os
+import shutil
 from pathlib import Path
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -79,8 +80,9 @@ class TestECSExecutor:
 
     @pytest.fixture
     def mock_executor(self, mock_executor_config):
-        # mocker.patch("tempfile")
-        return ECSExecutor(**mock_executor_config)
+        executor = ECSExecutor(**mock_executor_config)
+        executor.cache_dir = "/tmp/covalent_test_cache_dir/"
+        return executor
 
     @mock.patch.dict(os.environ, {}, clear=True)
     def test_init_explicit_values(self, mocker, mock_executor_config):
@@ -109,6 +111,8 @@ class TestECSExecutor:
     @pytest.mark.asyncio
     async def test_upload_file_to_s3(self, mock_executor, mocker):
         """Test to upload file to s3."""
+        Path(mock_executor.cache_dir).mkdir(parents=True, exist_ok=True)
+
         boto3_mock = mocker.patch("covalent_ecs_plugin.ecs.boto3")
 
         def some_function():
@@ -122,6 +126,8 @@ class TestECSExecutor:
             {"some": "kwarg"},
         )
         boto3_mock.Session().client().upload_file.assert_called_once()
+
+        shutil.rmtree(mock_executor.cache_dir)
 
     @pytest.mark.asyncio
     async def test_upload_task(self, mock_executor, mocker):
@@ -172,6 +178,7 @@ class TestECSExecutor:
     @pytest.mark.asyncio
     async def test_query_result(self, mocker, mock_executor, tmp_path: Path):
         """Test the method to query the result."""
+        Path(mock_executor.cache_dir).mkdir(parents=True, exist_ok=True)
         mock_local_result_path = Path(mock_executor.cache_dir) / self.MOCK_RESULT_FILENAME
         mock_local_result_path.touch()
 
@@ -187,6 +194,7 @@ class TestECSExecutor:
         boto3_mock.Session().client().download_file.assert_called_once_with(
             self.MOCK_S3_BUCKET_NAME, self.MOCK_RESULT_FILENAME, str(mock_local_result_path)
         )
+        shutil.rmtree(mock_executor.cache_dir)
 
     @pytest.mark.asyncio
     async def test_get_log_events(self, mocker, mock_executor):
@@ -290,3 +298,4 @@ class TestECSExecutor:
 
         _poll_task_mock.assert_called_once_with(returned_task_arn)
         query_result_mock.assert_called_once_with(self.MOCK_TASK_METADATA)
+        shutil.rmtree(mock_executor.cache_dir)
