@@ -42,7 +42,6 @@ _EXECUTOR_PLUGIN_DEFAULTS = {
     "region": "",
     "s3_bucket_name": "covalent-fargate-task-resources",
     "ecs_cluster_name": "covalent-fargate-cluster",
-    "ecs_task_family_name": "covalent-fargate-tasks",
     "ecs_task_execution_role_name": "ecsTaskExecutionRole",
     "ecs_task_role_name": "CovalentFargateTaskRole",
     "ecs_task_subnet_id": "",
@@ -72,7 +71,6 @@ class ECSExecutor(AWSExecutor):
         profile: Name of an AWS profile whose credentials are used.
         s3_bucket_name: Name of an S3 bucket where objects are stored.
         ecs_cluster_name: Name of the ECS cluster on which tasks run.
-        ecs_task_family_name: Name of the ECS task family for a user, project, or experiment.
         ecs_task_execution_role_name: Name of the IAM role used by the ECS agent.
         ecs_task_role_name: Name of the IAM role used within the container.
         ecs_task_subnet_id: Valid subnet ID.
@@ -101,7 +99,6 @@ class ECSExecutor(AWSExecutor):
         poll_freq: int = None,
         **kwargs,
     ):
-
         super().__init__(
             region=region or get_config("executors.ecs.region"),
             credentials_file=credentials or get_config("executors.ecs.credentials"),
@@ -116,7 +113,6 @@ class ECSExecutor(AWSExecutor):
         )
 
         self.ecs_cluster_name = ecs_cluster_name or get_config("executors.ecs.ecs_cluster_name")
-        self.ecs_task_family_name = ""
 
         self.ecs_task_role_name = ecs_task_role_name or get_config(
             "executors.ecs.ecs_task_role_name"
@@ -129,12 +125,10 @@ class ECSExecutor(AWSExecutor):
         )
         self.vcpu = vcpu or get_config("executors.ecs.vcpu")
         self.memory = memory or get_config("executors.ecs.memory")
-        self._cwd = tempfile.mkdtemp()
+        self._ecs_task_family_name = ""
 
         if self.cache_dir == "":
             self.cache_dir = get_config("executors.ecs.cache_dir")
-
-        Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
 
         if not self._is_valid_subnet_id(self.ecs_task_subnet_id):
             app_log.error(
@@ -187,10 +181,9 @@ class ECSExecutor(AWSExecutor):
 
         # Register the task definition
         self._debug_log("Registering ECS task definition...")
-        self.ecs_task_family_name = f"{dispatch_id}-{node_id}"
         partial_func = partial(
             ecs.register_task_definition,
-            family=self.ecs_task_family_name,
+            family=self._ecs_task_family_name,
             taskRoleArn=self.ecs_task_role_name,
             executionRoleArn=f"arn:aws:iam::{account}:role/{self.execution_role}",
             networkMode="awsvpc",
@@ -235,7 +228,7 @@ class ECSExecutor(AWSExecutor):
         self._debug_log("Running task on ECS...")
         partial_func = partial(
             ecs.run_task,
-            taskDefinition=self.ecs_task_family_name,
+            taskDefinition=self._ecs_task_family_name,
             launchType="FARGATE",
             cluster=self.ecs_cluster_name,
             count=1,
@@ -266,6 +259,11 @@ class ECSExecutor(AWSExecutor):
         """Main run method."""
         dispatch_id = task_metadata["dispatch_id"]
         node_id = task_metadata["node_id"]
+
+        if not (cache_dir_path := Path(self.cache_dir)).exists():
+            cache_dir_path.mkdir(parents=True, exist_ok=True)
+
+        self._ecs_task_family_name = f"{dispatch_id}-{node_id}"
 
         self._debug_log(f"Executing Dispatch ID {dispatch_id} Node {node_id}")
 
@@ -300,7 +298,7 @@ class ECSExecutor(AWSExecutor):
         partial_func = partial(
             paginator.paginate,
             cluster=self.ecs_cluster_name,
-            family=self.ecs_task_family_name,
+            family=self._ecs_task_family_name,
             desiredStatus="STOPPED",
         )
         page_iterator = await _execute_partial_in_threadpool(partial_func)
@@ -372,7 +370,7 @@ class ECSExecutor(AWSExecutor):
         dispatch_id = task_metadata["dispatch_id"]
         node_id = task_metadata["node_id"]
         result_filename = RESULT_FILENAME.format(dispatch_id=dispatch_id, node_id=node_id)
-        local_result_filename = os.path.join(self._cwd, result_filename)
+        local_result_filename = os.path.join(self.cache_dir, result_filename)
 
         self._debug_log(
             f"Downloading {result_filename} from bucket {self.s3_bucket_name} to local path ${local_result_filename}"
