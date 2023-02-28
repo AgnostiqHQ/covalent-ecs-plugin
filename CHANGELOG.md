@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed redundant `ecr_repo_name` kwarg from README
 
+## [0.28.0] - 2023-02-28
+
+### Changed 
+
+- pre-commit yml.
+
+### Removed
+
+- References to `ecs_task_family_name` and `self._cwd` since this is not used anymore.
+
 ## [0.27.0] - 2022-12-15
 
 ### Changed
