@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Operations
+
+- Fix tests workflow.
+
 ## [0.29.0] - 2023-02-28
 
 ### Changed
