@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Changed
+
+- Updated the terraform provider version for AWS to 5.17.0 (ecs plugin)
+- Disabled `enable_nat_gateway` on the vpc module, since it was throwing error from the respective module
+
 ## [0.31.0] - 2023-09-20
 
 ### Changed
