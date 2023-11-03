@@ -55,6 +55,7 @@ class ExecutorInfraDefaults(BaseModel):
     """
     Configuration values for provisioning AWS Batch cloud infrastructure
     """
+
     prefix: str = ""
     credentials: str = ""
     profile: str = ""
