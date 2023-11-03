@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Changed the `name` variable / attribute to `prefix` to follow uniformity across   all executor plugins
 - Changed the **dict** type of defaults to `ExecutorInfraDefaults` & `ExecutorPluginDefaults`
+- Minor changes in `MANIFEST.in` file
 
 ### Added
 

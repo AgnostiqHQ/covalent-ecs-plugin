@@ -1,3 +1,5 @@
 include VERSION
 include requirements.txt
+include covalent_ecs_plugin/assets/infra/*
+include covalent_ecs_plugin/assets/infra/*.swp
 include covalent_ecs_plugin/assets/infra/*.tf
