@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+## [0.33.0] - 2023-11-21
+
 ### Changed
 
 - Changed the `name` variable / attribute to `prefix` to follow uniformity across   all executor plugins
