@@ -19,7 +19,7 @@ provider "aws" {
 }
 
 resource "aws_s3_bucket" "bucket" {
-  bucket = "${var.name}-bucket"
+  bucket = "${var.prefix}-bucket"
   force_destroy = true
 }
 
@@ -38,7 +38,7 @@ resource "aws_s3_bucket_acl" "bucket_acl" {
 }
 
 resource "aws_ecr_repository" "ecr_repository" {
-  name                 = "${var.name}-ecr-repo"
+  name                 = "${var.prefix}-ecr-repo"
   image_tag_mutability = "IMMUTABLE"
 
   force_delete = true
@@ -49,11 +49,11 @@ resource "aws_ecr_repository" "ecr_repository" {
 }
 
 resource "aws_cloudwatch_log_group" "log_group" {
-  name = "${var.name}-log-group"
+  name = "${var.prefix}-log-group"
 }
 
 resource "aws_ecs_cluster" "ecs_cluster" {
-  name = "${var.name}-ecs-cluster"
+  name = "${var.prefix}-ecs-cluster"
 
   configuration {
     execute_command_configuration {
@@ -63,4 +63,31 @@ resource "aws_ecs_cluster" "ecs_cluster" {
       }
     }
   }
+}
+
+# Executor Covalent config section
+data template_file executor_config {
+  template = "${file("${path.module}/ecs.conf.tftpl")}"
+
+  vars = {
+    credentials=var.credentials
+    profile=var.profile
+    region=var.aws_region
+    s3_bucket_name=aws_s3_bucket.bucket.id
+    ecs_cluster_name=aws_ecs_cluster.ecs_cluster.name
+    ecs_task_execution_role_name=aws_iam_role.ecs_tasks_execution_role.name
+    ecs_task_role_name=aws_iam_role.task_role.name
+    ecs_task_subnet_id=module.vpc.public_subnets[0]
+    ecs_task_security_group_id=aws_security_group.sg.id
+    ecs_task_log_group_name=aws_cloudwatch_log_group.log_group.name
+    vcpu=var.vcpus
+    memory=var.memory
+    cache_dir=var.cache_dir
+    poll_freq=var.poll_freq
+  }
+}
+
+resource local_file executor_config {
+  content = data.template_file.executor_config.rendered
+  filename = "${path.module}/ecs.conf"
 }

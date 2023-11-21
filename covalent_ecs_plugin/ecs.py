@@ -29,25 +29,51 @@ import cloudpickle as pickle
 from covalent._shared_files.config import get_config
 from covalent._shared_files.logger import app_log
 from covalent_aws_plugins import AWSExecutor
+from pydantic import BaseModel
 
 from .utils import _execute_partial_in_threadpool, _load_pickle_file
 
-_EXECUTOR_PLUGIN_DEFAULTS = {
-    "credentials": "",
-    "profile": "",
-    "region": "",
-    "s3_bucket_name": "covalent-fargate-task-resources",
-    "ecs_cluster_name": "covalent-fargate-cluster",
-    "ecs_task_execution_role_name": "ecsTaskExecutionRole",
-    "ecs_task_role_name": "CovalentFargateTaskRole",
-    "ecs_task_subnet_id": "",
-    "ecs_task_security_group_id": "",
-    "ecs_task_log_group_name": "covalent-fargate-task-logs",
-    "vcpu": 0.25,
-    "memory": 0.5,
-    "cache_dir": "/tmp/covalent",
-    "poll_freq": 10,
-}
+
+class ExecutorPluginDefaults(BaseModel):
+    credentials: str = ""
+    profile: str = ""
+    region: str = ""
+    s3_bucket_name: str = "covalent-fargate-task-resources"
+    ecs_cluster_name: str = "covalent-fargate-cluster"
+    ecs_task_execution_role_name: str = "ecsTaskExecutionRole"
+    ecs_task_role_name: str = "CovalentFargateTaskRole"
+    ecs_task_subnet_id: str = ""
+    ecs_task_security_group_id: str = ""
+    ecs_task_log_group_name: str = "covalent-fargate-task-logs"
+    vcpu: float = 0.25
+    memory: float = 0.5
+    cache_dir: str = "/tmp/covalent"
+    poll_freq: int = 10
+
+
+class ExecutorInfraDefaults(BaseModel):
+    """
+    Configuration values for provisioning AWS Batch cloud infrastructure
+    """
+
+    prefix: str = ""
+    credentials: str = ""
+    profile: str = ""
+    region: str = ""
+    s3_bucket_name: str = "covalent-fargate-task-resources"
+    ecs_cluster_name: str = "covalent-fargate-cluster"
+    ecs_task_execution_role_name: str = "ecsTaskExecutionRole"
+    ecs_task_role_name: str = "CovalentFargateTaskRole"
+    ecs_task_subnet_id: str = ""
+    ecs_task_security_group_id: str = ""
+    ecs_task_log_group_name: str = "covalent-fargate-task-logs"
+    vcpu: float = 0.25
+    memory: float = 0.5
+    cache_dir: str = "/tmp/covalent"
+    poll_freq: int = 10
+
+
+_EXECUTOR_PLUGIN_DEFAULTS = ExecutorPluginDefaults().dict()
 
 EXECUTOR_PLUGIN_NAME = "ECSExecutor"
 
@@ -215,7 +241,7 @@ class ECSExecutor(AWSExecutor):
                     ],
                 },
             ],
-            cpu=str(int(self.vcpu * 1024)),
+            cpu=str(int(self.vcpu)),
             memory=str(int(self.memory * 1024)),
         )
         await _execute_partial_in_threadpool(partial_func)

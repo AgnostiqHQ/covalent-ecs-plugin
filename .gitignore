@@ -113,3 +113,10 @@ ipython_config.py
 
 # Coverage
 .coverage
+
+# Terraform
+**/.terraform/**
+**/*.tfstate*
+**/.terraform.lock.hcl
+**/*.tfvars
+**/*.plan
