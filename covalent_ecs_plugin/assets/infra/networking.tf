@@ -22,7 +22,7 @@ module "vpc" {
   name = "${var.prefix}-vpc"
   cidr = var.vpc_cidr
 
-  azs = ["${var.aws_region}a"]
+  azs = ["${var.region}a"]
 
   public_subnets = [
     cidrsubnet(var.vpc_cidr, 0, 0)

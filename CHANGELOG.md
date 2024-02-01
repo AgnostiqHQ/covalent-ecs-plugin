@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.33.0] - 2023-11-21
 
+## Added
+
+- Generate random UUID for prefix variable to avoid name conflicting deployed resources
+
 ### Changed
 
 - Changed the `name` variable / attribute to `prefix` to follow uniformity across   all executor plugins

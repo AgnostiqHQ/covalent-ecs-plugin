@@ -10,7 +10,7 @@ data "aws_iam_policy_document" "ecs_tasks_execution_role" {
 }
 
 resource "aws_iam_role" "ecs_tasks_execution_role" {
-  name               = "${var.prefix}-task-execution-role"
+  name               = "${local.prefix}-task-execution-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_execution_role.json
 }
 
@@ -20,7 +20,7 @@ resource "aws_iam_role_policy_attachment" "ecs_tasks_execution_role" {
 }
 
 resource "aws_iam_role_policy" "task_policy" {
-  name = "${var.prefix}-task-policy"
+  name = "${local.prefix}-task-policy"
   role = aws_iam_role.task_role.id
 
   policy = jsonencode({
@@ -49,7 +49,7 @@ resource "aws_iam_role_policy" "task_policy" {
 }
 
 resource "aws_iam_role" "task_role" {
-  name = "${var.prefix}-task-role"
+  name = "${local.prefix}-task-role"
 
   assume_role_policy = jsonencode({
     "Version" : "2012-10-17",
