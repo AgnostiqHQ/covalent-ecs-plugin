@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
-## [0.33.0] - 2023-11-21
-
-## Added
+### Added
 
 - Generate random UUID for prefix variable to avoid name conflicting deployed resources
+
+## [0.33.0] - 2023-11-21
 
 ### Changed
 
