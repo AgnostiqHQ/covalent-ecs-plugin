@@ -15,11 +15,11 @@
 # limitations under the License.
 
 variable "prefix" {
-  default     = "covalent-ecs-ft"
+  default     = ""
   description = "Name used to prefix AWS resources"
 }
 
-variable "aws_region" {
+variable "region" {
   default     = "us-east-1"
   description = "Region in which Covalent is deployed"
 }
